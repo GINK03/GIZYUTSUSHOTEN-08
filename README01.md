@@ -21,7 +21,6 @@
 - 4.3 tor経由でのアクセス
 
 
-## 5. Depth 3, 膨大なページのデータを高効率で保管する
 - 5.1 自作KVSとその関連
 - 5.2 最強のDBは結局ファイルシステム
 
@@ -71,4 +70,48 @@
 
 現代はインターネットにより誰もが手軽に様々な情報を手に入れる事が可能になりました。専門のサイト、サービスやSNSなどに多くの人間が様々なことを報告しています。これらの情報を束ねると手軽に真実がわかることがあります。正しい情報とはそれだけで皆さんの判断にプラスの影響をもたらしますし、世界を見る視野を正しく広げる一助にもなります。そんなわけで、"Practical Data Science and Data Engineering Vol.1" ではスクレイピングのテクニックについてお伝えしていこうと思います。 
 
+
+# 2.  データを集める手段、スクレイピングの基礎
+
+## 2.1 Requests + BeautifulSoupでスクレイピングする
+スクレイピングの手法としてPythonで一般的である、requestsとBeautifulSoupのモジュールを利用したスクレイピングについて説明を行います。
+環境はUbunut LinuxかMacOSを前提とします。Windowsをお使いの方はAWSかGCPで安いインスタンスを借りることができるので、Linuxをインストールして体験してみると良いと思います。
+
+requestsはpythonで扱いにくかったhttp, httpsなどのアクセスを簡略化して様々なベストプラクティスを詰め込んだライブラリです。他にも様々なものがありますが、これが2020年現在、もっとも使いやすいものです。
+
+BeautifulSoupとはhtmlパーサライブラリで、htmlは特定のフォーマットで記述された言語になり、機械で適切に処理させるにはパーサというものを介さないといけません。
+
+
+### pipでのrequests, BeautifulSoupのインストール
+Anacondaや特殊なPythonでは別のパッケージマネージャがありますが、pipで統一して話をす進めます。
+
+```console
+$ pip install requests bs4
+```
+
+<div align="center">
+<img width="100%" src="https://www.dropbox.com/s/yr70t5z9ymj0z95/%E3%82%B9%E3%82%AF%E3%83%AA%E3%83%BC%E3%83%B3%E3%82%B7%E3%83%A7%E3%83%83%E3%83%88%202020-01-03%202.01.30.png?raw=1">
+<div>図 x. インストール成功時に期待する画面</div>
+</div>
+
+### Pythonのファイルを書いて実行する
+
+例えば、ヤフージャパンのサイトのタイトルをスクレイピングを試みると、以下のようなコードで実行することでできます。
+
+```python
+#!/usr/bin/env python3
+
+import requests
+from bs4 import BeautifulSoup
+
+def main():
+    r = requests.get('https://yahoo.co.jp')
+    html = r.text
+    soup = BeautifulSoup(html)
+    print(soup.title.text)
+if __name__ == '__main__':
+    main()
+```
+
+このようなコードを実行すると、ヤフージャパンのトップページのタイトルの「Yahoo! Japan」というテキストが得られます。
 
