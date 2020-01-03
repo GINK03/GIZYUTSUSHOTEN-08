@@ -115,3 +115,40 @@ if __name__ == '__main__':
 
 このようなコードを実行すると、ヤフージャパンのトップページのタイトルの「Yahoo! Japan」というテキストが得られます。
 
+では、ヤフー砲と呼ばれるぐらい影響力がある、ヤフーのトップのニュースのタイトルとリンクをスクレイピングするように上記のコードを改良してみましょう。
+
+```python
+#!/usr/bin/env python3
+
+import requests
+from bs4 import BeautifulSoup
+import re
+
+def main():
+    r = requests.get('https://yahoo.co.jp')
+    html = r.text
+    soup = BeautifulSoup(html)
+    for a in soup.find_all('a', {'href':re.compile('https://news.yahoo.co.jp*')}):
+        news_title = a.text
+        link = a['href']
+        print(news_title, link)
+if __name__ == '__main__':
+    main()
+```
+
+このコードで以下のような出力が得られました。
+
+<div align="center">
+<img width="100%" src="https://www.dropbox.com/s/rlt2suifvxnvuzm/%E3%82%B9%E3%82%AF%E3%83%AA%E3%83%BC%E3%83%B3%E3%82%B7%E3%83%A7%E3%83%83%E3%83%88%202020-01-03%202.35.28.png?raw=1">
+<div>図 x. インストール成功時に期待する画面</div>
+</div>
+
+これでヤフー砲を監視するスクリプトが書けますね。株価に重大な影響を及ぼすファクターだけに、いち早く察知することができるので他の人手の投資家に対して自動化などで先んじることができそうです。
+
+BeautifulSoupはタグの種類とタグに与えられているプロパティのような要素で検索するようにアクセスすることができ、　`soup.find_all('a', {'href':re.compile('https://news.yahoo.co.jp*')})`は、 `<a>` のタグに対して `hrefで正規表現でhttps://news.yahoo.co.jp` に一致する範囲のタグをすべてリストで取り出す、という操作になります。
+
+このタグはchromeのインスペクタで見たときと差があることに気づくと思います。実は、requestsではhttp, httpsで情報をくれというリクエストを投げるだけですのでJavaScript等の解釈ができません。つまり、JavaScriptが動くことで初めて描画されるようなコンテンツに関しては、全くのスルーになり、Google Chromeなどで見たときのhtml構造とは異なる事があるので、注意してください。Google ChromeなどでJavaScriptを停止するChrome拡張などを入れてhtmlの構造を最初に把握しておくと良いです。
+
+
+## 2.3 ハイパーリンクが作るネットワークは探索問題
+
