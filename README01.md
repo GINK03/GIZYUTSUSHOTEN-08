@@ -1,8 +1,6 @@
 # 次目
 
 ## 1. 現代の最強の科学・意思決定法、定量分析
- - 何が真実かわからいない世の中で、真実は定量データに多く宿るという例を示す。
- - 例えば、ワクチンの統計調査について。
  - 1.1 なぜ、定量分析が最強なのか
 ## 2.  データを集める手段、スクレイピングの基礎
  - 2.1 Requests + BeautifulSoupでスクレイピングする
@@ -37,6 +35,7 @@
 
 ## 10. 閑話休題1, GCPで間違ったクエリを送って事故ったときの話 
 
+## 11. 閑話休題2, リクエストが多すぎるとDNSが応答しなくなる
 
 # 1. 現代の最強の科学・意思決定法、定量分析
 ## 1.1 なぜ、定量分析が最強なのか
@@ -226,8 +225,10 @@ for I in range(3):
         flatten_urls.add(url)
         all_urls -= {DepthUrl(depth_, url)}
     urls = sorted(all_urls, key=lambda x:x[0])
-    min_depth = min([url.depth for url in urls])
+    min_depth = min([url.depth for url in urls]) # ここに注目
     urls = [url for url in urls if url.depth == min_depth]
 ```
 
-  
+最も深さが浅いものをスクレイピングするように `min_depth` を算出していますが、ここを `max_depth` に変更したり、一定のルールでビーム幅を設定して計算量を抑えることでビーンサーチにすることができます。  
+
+
