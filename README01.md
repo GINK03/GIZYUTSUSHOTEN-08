@@ -8,6 +8,7 @@
  - 2.1 Requests + BeautifulSoupでスクレイピングする
  - 2.2 Google Chrome + Seleniumでスクレイピングする
  - 2.3 ハイパーリンクが作るネットワークは探索問題
+ - 2.3.1 幅優先探索・深さ優先探索・ビームサーチ
  - 2.4 法的問題
 
 ## 3. 最強のDB、自作DBを作る
@@ -189,7 +190,44 @@ while True:
   まずこのコードはシングルプロセスでしか動作させることができませんし、store_db, exists_dbで dbに大量にアクセスが発生します。  
 
   通常このようなユースケースではRDBは不向きで、例えばAWSのauroraのようなクエリ単位とスキャン量に対して課金されるようなDBの場合、一瞬で破産することが期待できます。  
+  この問題を解決するには次の章の `3. 最強のDB、自作DBを作る` に記述します。 
 
+### 2.3.1 幅優先探索・深さ優先探索・ビームサーチ
+　ネットワーク状になっているので、探索方式がいくつか考えられます。  
+例えば幅優先探索でスクレイピングする場合、浅い領域を優先してスクレイピングを継続します。できるだけ外部ドメインに出ないようにコードを取得するなど向いています。  
 
+深さ優先探索になると、深い方を優先して探索するようになるのでネットワークから遠いところを優先してスクレイピングするようになります。URLが遠い場合などが有効です。 
+
+ビームサーチは幅優先探索と深さ優先探索のバランスを取ったような方法で、一定の探索幅を維持して、深さも幅も良いところどりをするものになります。
+
+以下のコードの例では、幅優先探索で `yahoo.co.jp` のドメインをスクレイピングするものになります。
+
+```python
+import requests
+from bs4 import BeautifulSoup
+import time
+import re
+from collections import namedtuple
+
+DepthUrl = namedtuple('DepthUrl', ['depth', 'url'])
+urls = [DepthUrl(0, 'https://www.yahoo.co.jp/')]
+all_urls = set()
+flatten_urls = set('https://www.yahoo.co.jp/')
+depth = 0
+for I in range(3):
+    depth += 1
+    for depth_, url in urls:
+        html = requests.get(url).text
+        soup = BeautifulSoup(html, features="html.parser")
+        for a in soup.find_all('a', {'href':re.compile(r'.*?\.yahoo\.co\.jp')}):
+            next_url = a.get('href')
+            if next_url not in flatten_urls:
+                all_urls.add(DepthUrl(depth, next_url))
+        flatten_urls.add(url)
+        all_urls -= {DepthUrl(depth_, url)}
+    urls = sorted(all_urls, key=lambda x:x[0])
+    min_depth = min([url.depth for url in urls])
+    urls = [url for url in urls if url.depth == min_depth]
+```
 
   
