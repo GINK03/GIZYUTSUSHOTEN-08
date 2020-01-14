@@ -17,10 +17,11 @@
 ## ４. Depth 1, UserAngent, Referrer を偽装する
 - 4.1 自分が使っているUserAgentを確認する
 - 4.2 サイト管理人格に配慮する
+- 4.3 Referrerを偽装する
 
 ## 5. Depth 2, IPを偽装する
- - 5.1 プロキシサーバを立ててアクセス
- - 5.1.x 閑話休題, AWSアク禁
+- 5.1 プロキシサーバを立ててアクセス
+- 5.1.x 閑話休題, AWSアク禁
 - 5.2 公開プロキシ経由でのアクセス
 - 5.3 tor経由でのアクセス
 
@@ -337,5 +338,21 @@ headers = {
 r = requests.get('https://www.yahoo.co.jp/', headers=headers)
 ```
 
+### 4.3 Referrerを偽装する
+今はこの要素がクローラーであるかどうかを判断する要素にはなりませんが、昔からあるレガシーなクローラーブロック術に、refereという前に何のページをみていたかで判断するサイトもあります。  
 
+この場合、requestsなどのアクセスにheader情報をつけることで、アクセスすることが可能になります。  
+
+refererに何かURLを入れるとそのURLから来たという意思表示になるというわけです。  
+
+```python
+# referrerを付ける例
+import requests
+from bs4 import BeautifulSoup
+
+headers = {'referer':'https://google.com',
+        'User-Agent':'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_2) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/79.0.3945.117 Safari/537.36'}
+r = requests.get('https://www.yahoo.co.jp/', headers=headers)
+soup = BeautifulSoup(r.text, features='html5lib')
+```
 
