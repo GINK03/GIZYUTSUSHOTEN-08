@@ -6,6 +6,9 @@
 ## 2.  データを集める手段、スクレイピングの基礎
  - 2.1 Requests + BeautifulSoupでスクレイピングする
  - 2.2 Google Chrome + Seleniumでスクレイピングする
+ - 2.2.1 Pixivを例に取る
+ - 2.2.2 Pixivを例に取る: Google Chrome + Seleniumでデータを取得する
+ - 2.2.3 Pixivを例に取る: 自動でログインしてデータを取得する
  - 2.3 ハイパーリンクが作るネットワークは探索問題
  - 2.3.1 幅優先探索・深さ優先探索・ビームサーチ
  - 2.4 法的問題
@@ -84,7 +87,7 @@ requestsはpythonで扱いにくかったhttp, httpsなどのアクセスを簡�
 BeautifulSoupとはhtmlパーサライブラリで、htmlは特定のフォーマットで記述された言語になり、機械で適切に処理させるにはパーサというものを介さないといけません。
 
 
-### pipでのrequests, BeautifulSoupのインストール
+#### pipでのrequests, BeautifulSoupのインストール
 Anacondaや特殊なPythonでは別のパッケージマネージャがありますが、pipで統一して話をす進めます。
 
 ```console
@@ -96,7 +99,7 @@ $ pip install requests bs4
 <div>図 x. インストール成功時に期待する画面</div>
 </div>
 
-### Pythonのファイルを書いて実行する
+#### Pythonのファイルを書いて実行する
 
 例えば、ヤフージャパンのサイトのタイトルをスクレイピングを試みると、以下のようなコードで実行することでできます。
 
@@ -151,6 +154,90 @@ BeautifulSoupはタグの種類とタグに与えられているプロパティ�
 
 このタグはchromeのインスペクタで見たときと差があることに気づくと思います。実は、requestsではhttp, httpsで情報をくれというリクエストを投げるだけですのでJavaScript等の解釈ができません。つまり、JavaScriptが動くことで初めて描画されるようなコンテンツに関しては、全くのスルーになり、Google Chromeなどで見たときのhtml構造とは異なる事があるので、注意してください。Google ChromeなどでJavaScriptを停止するChrome拡張などを入れてhtmlの構造を最初に把握しておくと良いです。
 
+## 2.2 Google Chrome + Seleniumでスクレイピングする
+そもそもrequestsだけでスクレイピングが完結してしまうような構造のウェブサイトは多くのスクレイパーの餌食になると想像が付きます。  
+
+このとき、スクレイピングする側と、ウェブサイト側のスクレイピングされる側に利益相反などがあると、スクレイピング難易度を上げて防御的な構造を取ることが多くあります。  
+
+requestsで取得する際にはJavaScriptが動作しないので、コンテンツの多くをJavaScriptに描画させるなどの手法が取られます。  
+
+### 2.2.1 Pixivを例に取る
+数年前のPixivは割と簡単な構造で構築されており、簡単に殆どのイラストを収集することができましたが、現在はJavaScriptで多くのコンテンツをラップすることで、簡単には解析されないようにしています。  
+
+例えば、このようなコンテンツをユーザ側のブラウザで見ることができました。  
+<div align="center">
+  <img width="450px" src="https://www.dropbox.com/s/bvvh4pt0yraq08h/Screen%20Shot%202020-01-14%20at%2018.04.29.png?raw=1">
+  <div>図 x. https://www.pixiv.net/artworks/75863105 </div>
+</div>
+
+では、このhtmlを解析しようとして、requestsでhtmlを取得して解析してみましょう。  
+
+```python
+# pixiv example only requests
+import requests
+from bs4 import BeautifulSoup
+
+r = requests.get('https://www.pixiv.net/artworks/75863105')
+soup = BeautifulSoup(r.text, 'html5lib')
+for div in soup.find_all('div'):
+    print(div)
+```
+
+期待としては、大量のdivタグの構造を取得できるはずですが、実際の2020年1月時点での出力は以下のようになります。  
+
+```console
+$ python3 006.py
+<div id="root"></div>
+```
+このプログラムは巻末のgithubからダウンロードできます。
+
+では、どうやってマミミのイラストを集めればいいのでしょうか？  
+シンプルで簡単な解決法としてGoogle Chromeをseleniumで動作させることで、期待する動作を得ることができます。  
+
+### 2.2.2 Pixivを例に取る: Google Chrome + Seleniumでデータを取得する
+SeleniumとChromeDriverはインストール済みという前提で進めると、以下のコードでこのマミミのサイトのhtmlを取得できるはずです。  
+
+```python
+# headless google-chromeの例
+import os
+import shutil
+from bs4 import BeautifulSoup
+import time
+import requests
+from selenium import webdriver
+from selenium.webdriver.common.keys import Keys
+from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import WebDriverWait
+
+HOME = os.environ['HOME']
+target_url = 'https://www.pixiv.net/artworks/75863105'
+options = Options()
+options.add_argument("--headless")
+options.add_argument('window-size=2024x2024')
+options.add_argument(f'user-data-dir=work_dir')
+options.binary_location = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'
+
+driver = webdriver.Chrome(executable_path=shutil.which('chromedriver'), options=options)
+driver.get(target_url)
+time.sleep(5.0)
+html = driver.page_source
+soup = BeautifulSoup(html, 'html5lib')
+driver.save_screenshot("screenshot.png")
+```
+<div align="center">
+  <img width="450px" src="https://www.dropbox.com/s/nint3yia9uei7n7/Untitled.png?raw=1">
+  <div>図 x. 結果 </div>
+</div>
+
+残念ながら、ログインしていないため、マミミは見ることができません。(どうして？)  
+
+次のステップでこれを更に拡張して、自動でログインして見るまで進めます。 
+
+
+### 2.2.3 Pixivを例に取る: 自動でログインしてデータを取得する
+
 
 ## 2.3 ハイパーリンクが作るネットワークは探索問題
   ハイパーリンクはネットワーク状に繋がったネットワークをいかに探索するか、という問題にも帰着できます。  
@@ -158,7 +245,7 @@ BeautifulSoupはタグの種類とタグに与えられているプロパティ�
   例えば以下のような図のネットワークがあったとします。  
 
 <div align="center">
-<img width="100%" src="https://www.dropbox.com/s/07c2lcso578muxc/web.png?raw=1">
+<img width="600px" src="https://www.dropbox.com/s/07c2lcso578muxc/web.png?raw=1">
 <div>図 x. インターネットのhyper linkの依存関係の例</div>
 </div>
 
