@@ -431,18 +431,134 @@ Pythonではファイルやバイナリデータのハッシュ値を扱うの�
 
 例として、なにかのkey, valueがある場合、O(1)でファイルシステムから書き込み、参照するコードを書いてみます。  
 
+通常のスクレイピングでは、何度も同じURLが出現する事があり、そのたびに新規リクエストを投げていたら、対象のサイトに異常な負荷を掛ける結果になってしまいます。  
+
+そのためダミーのURLを生成して、スクレイピングしたデータがあると仮定して、ファイルシステムを利用して、データを保存するコードを書いてみます。
+```python
+# ファイルシステムベースのKVSの例
+import gzip
+import pickle
+from pathlib import Path
+from collections import namedtuple
+from itertools import count
+import requests
+import random
+from hashlib import sha224
+
+Datum = namedtuple('Datum', ['depth', 'domain', 'html', 'links'])
+
+def flash(url, datum):
+    # keyとなるurlのhash値を計算(長過ぎるのトリムする)
+    key = sha224(bytes(url, 'utf8')).hexdigest()[:24]
+    # valueとなるDatum型のシリアライズと圧縮
+    value = gzip.compress(pickle.dumps(datum))
+
+    # db/にhash値のファイル名で書き込む
+    with open(f'db/{key}', 'wb') as fp:
+        fp.write(value)
+
+def isExists(url):
+    # keyとなるurlのhash値を計算(長過ぎるのトリムする)
+    key = sha224(bytes(url, 'utf8')).hexdigest()[:24]
+    # もし、キーとなるファイルが存在していたら、それは過去にスクレイピングしたURLである
+    if Path(f'db/{key}').exists():
+        return True
+    else:
+        return False
+
+dummy_urls = [f'{k:04d}' for k in range(1000)]
+# ランダムなURLをスクレイピングしたとする
+for i in range(10000):
+    dummy_url = random.choice(dummy_urls)
+    # すでにスクレイピングしていたURLならスキップする
+    if isExists(dummy_url) is True:
+        continue
+    depth = 1
+    dummy_html = '<html> dummy </html>'
+    dummy_domain = 'example.com'
+    dummy_links = ['1', '2', '3']
+    datum = Datum(depth=depth, domain=dummy_domain, html=dummy_html, links=dummy_links)
+    flash(dummy_url, datum)
+```
+このコードはキーとなるURLに対して行った処理に対して、hash値をキーに、valueにnamedtupleを利用することで、KVS Likeなことをしています。  
+1000種類しかないURLに対して10000回も処理命令があった場合、重複するようなURLがあるはずでこのURLを効率的にスキップしたいです。その際に、hash名を持つファイルが存在するかどうかだけで判断するので、実質的にファイルシステムのアルゴリズムからこれはO(1)であることがわかります。  
+
+
+さてシンプルなこのコードを、並列化してみましょう。  
+
+この方法は、それぞれの並列化した関数（またはプロセス）から、ファイルシステムへアクセスすることが可能であり、例えばこれはLevelDBではバグってしまい完走することができません。
 
 ```python
-...
+# ファイルシステムベースのKVSの例
+import gzip
+import pickle
+from pathlib import Path
+from collections import namedtuple
+from itertools import count
+import requests
+import random
+from hashlib import sha224
+from concurrent.futures import ProcessPoolExecutor
+
+Datum = namedtuple('Datum', ['depth', 'domain', 'html', 'links'])
+
+
+def flash(url, datum):
+    # keyとなるurlのhash値を計算(長過ぎるのトリムする)
+    key = sha224(bytes(url, 'utf8')).hexdigest()[:24]
+    # valueとなるDatum型のシリアライズと圧縮
+    value = gzip.compress(pickle.dumps(datum))
+
+    # db/にhash値のファイル名で書き込む
+    with open(f'db/{key}', 'wb') as fp:
+        fp.write(value)
+
+
+def isExists(url):
+    # keyとなるurlのhash値を計算(長過ぎるのトリムする)
+    key = sha224(bytes(url, 'utf8')).hexdigest()[:24]
+    # もし、キーとなるファイルが存在していたら、それは過去にスクレイピングしたURLである
+    if Path(f'db/{key}').exists():
+        return True
+    else:
+        return False
+
+def parallel(arg):
+    url, depth = arg
+    if isExists(url) is True:
+        return
+    depth = 1
+    dummy_html = '<html> dummy </html>'
+    dummy_domain = 'example.com'
+    dummy_links = ['1', '2', '3']
+    datum = Datum(depth=depth, domain=dummy_domain, html=dummy_html, links=dummy_links)
+    flash(url, datum)
+
+dummy_urls = [f'{k:04d}' for k in range(1000)]
+# ランダムなURLをスクレイピングしたとする
+dummy_urls = [(random.choice(dummy_urls), i) for i in range(10000)]
+with ProcessPoolExecutor(max_workers=8) as exe:
+    exe.map(parallel, dummy_urls)
 ```
+ここで用いている `concurrent.future.ProcessPoolExecutor` は、引数に与えた関数をマルチコアで動作させるライブラリで、 `max_worker` で並列数を指定できるので、この場合は8コアで動作することになります。  
+最近のCPUはコア数が多いのでリソースを最大に活かしながら、並列アクセス、並列パースなどができ、高速かつnon-blockingにKVSライクな処理を行うことができます。  
 
-さてシンプルなコードを、並列化してみましょう。  
 
-それぞれの並列化した関数（またはプロセス）から、ファイルシステムへアクセスすることが可能であり、例えばこれはLevelDBではバグってしまい完走することができません。
+なお、例えばLevelDBを使って並列処理を行おうと試みた場合、levelDBは使っているうちはロックが掛かるのと、ロックを無理やり上記のようなマルチプロセスライブラリ等で並列化した場合、DBのファイルに不整合が生じて、結果としてDBそのものを破壊してしまう、という事態になります。  
 
-```python
-...
+```console
+$ python3 010.py  | wc -l
+Traceback (most recent call last):
+  File "010.py", line 55, in <module>
+    for key, value in db.iterator():
+  File "plyvel/_plyvel.pyx", line 362, in plyvel._plyvel.DB.iterator
+  File "plyvel/_plyvel.pyx", line 788, in plyvel._plyvel.Iterator.__init__
+  File "plyvel/_plyvel.pyx", line 94, in plyvel._plyvel.raise_for_status
+plyvel._plyvel.Error: b'NotFound: /tmp/db//000005.ldb: No such file or directory'
+    1212
 ```
+↑ LevelDBが並列処理により破壊された例。　 
+
 
 ## ４. Depth 1, UserAngent, Referrer を偽装する
 
@@ -501,3 +617,9 @@ r = requests.get('https://www.yahoo.co.jp/', headers=headers)
 soup = BeautifulSoup(r.text, features='html5lib')
 ```
 
+## 5. Depth 2, IPを偽装する
+最近のGoogle社のサービスや、GAFAなどの強いプレイヤーのサービスは機械学習によるBANが活発に行われていますが、今も現在もおそらく最強の不正利用（と彼らが定義する）の判別は、IPアドレスになります。  
+
+IPアドレスを偽装したり変えたりするのは、かなり重要で、一発アウト制をとっているサービスさんだと、復旧は事実上不可能になり、そのサービスに二度とアクセスできなくなります。  
+
+私の経験を踏まえつつ、どの程度まではやっていいのか、どこからはダメなのか、駄目ならどう駄目なのか、お伝えしていこうと思います。
