@@ -642,9 +642,29 @@ dockerが正しくインストールされていれば、これだけでOKです
 これを利用して、curlコマンド等でアクセスするには以下のようになります。  
 
 ```console
-$ curl  --proxy http://133.130.97.98:3128/ example.com
+$ curl  --proxy http://133.130.97.98:3128/ https://ifconfig.co/
+133.130.97.98
+$ curl https://ifconfig.co/
+27.131.***.*** # オリジナルの私のIPが出てしまう
 ```
 
 IPアドレスは適宜インストールしたサーバのグローバルIPアドレスと読み替えてください。
 
 単純な発想では、これをGCPやAWSやGMOクラウドやconohaの一番安価なインスタンスにデプロイしてIPを払い出せば、無限にアクセス制限が回避できることになります。しかし、本当にクラウド業者がそんなことを考えていないなどありうるのでしょうか？
+
+
+pythonのrequestsでプロキシ経由で悪世するにはこのようなコードで実行する事ができます。  
+
+```python
+# proxy の例
+
+import requests
+
+proxies = {
+        "https": "http://133.130.97.98:3128/",
+        "http": "http://133.130.97.98:3128/"
+}
+r = requests.get('https://ifconfig.co/', proxies=proxies, verify=False)
+
+print(r.text)
+```
