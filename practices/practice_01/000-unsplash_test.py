@@ -6,41 +6,70 @@ from bs4 import BeautifulSoup
 from urllib.parse import urlparse
 from hashlib import sha224
 from pathlib import Path
-import random
+import random 
 import json
+import gzip
+from tqdm import tqdm
+import re
+from multiprocessing import Process, Manager
+import time
 
+manager = Manager()
+shared_d = manager.dict({'requests':0, 'bs4':0, 'img_dl':0, 'href':0 })
 
 def hashing(url):
-    x = sha224(bytes(url, 'utf8')).hexdigest()
+    x = sha224(bytes(url, 'utf8')).hexdigest()[:16]
     return x
-
 
 def parallel(arg):
     try:
         url = arg
-        print(url)
-        r = requests.get(url)
-        soup = BeautifulSoup(r.text)
+        mst_p = urlparse(url)
 
-        x = hashing(url)
-        if Path(f'html_labels/{x}').exists():
+        mst_p = mst_p._replace(query='')
+        url = mst_p.geturl()
+        if re.search('download$', url):
+            return set()
+        if 'https://unsplash.com/photos' not in url:
             return set()
 
-        hrefs = set()
-        for img in soup.find_all('img', {'src': True}):
+        print(url)
+        start = time.time()
+        with requests.get(url) as r:
+            html = r.text
+        shared_d['requests'] += time.time() - start 
+
+        start = time.time()
+        soup = BeautifulSoup(html, 'lxml')
+        shared_d['bs4'] += time.time() - start 
+
+        mst_x = hashing(url)
+        if Path(f'htmls/{mst_x}').exists():
+            return set()
+
+        start = time.time()
+        for img in soup.find_all('img', {'src': re.compile('https://images.unsplash.com/photo'), 'alt':True}):
             src = img.get('src')
-            if 'https://images.unsplash.com/' in src:
-                p = urlparse(src)
-                p = p._replace(query='')
-                src = p.geturl()
-                name = hashing(src)
-                print('query removed url', src, 'hashing', name)
-                if Path(f'imgs/{name}.jpg').exists():
-                    continue
-                r = requests.get(src)
+            alt = img.get('alt')
+            p = urlparse(src)
+            p = p._replace(query='')
+            src = p.geturl()
+            name = hashing(src)
+            #print('query removed url', src, 'hashing', name)
+            if Path(f'imgs/{mst_x}/{name}.jpg').exists():
+                continue
+            print('try download', src, alt, 'at', url)
+            with requests.get(src) as r:
                 binary = r.content
-                with open(f'imgs/{name}.jpg', 'wb') as fp:
-                    fp.write(binary)
+            Path(f'imgs/{mst_x}').mkdir(exist_ok=True, parents=True)
+            with open(f'imgs/{mst_x}/{name}.jpg', 'wb') as fp:
+                fp.write(binary)
+            with open(f'imgs/{mst_x}/{name}.txt', 'w') as fp:
+                fp.write(alt)
+        shared_d['img_dl'] += time.time() - start 
+
+        start = time.time()
+        hrefs = set()
         for a in soup.find_all('a', {'href': True}):
             href = a.get('href')
             try:
@@ -52,31 +81,39 @@ def parallel(arg):
                     continue
             except Exception as exc:
                 print(exc)
+        shared_d['href'] += time.time() - start 
 
-        # 終了ラベル
         x = hashing(url)
-        if random.random() <= 0.8:
-            Path(f'html_labels/{x}').touch()
-        else:
-            fp = Path(f'html_labels/{x}').open('w')
-            json.dump(list(hrefs), fp)
+        with Path(f'links/{x}').open('w') as fp:
+            json.dump(list(hrefs), fp, indent=2)
+        with Path(f'htmls/{x}').open('wb') as fp:
+            ser = gzip.compress(bytes(html, 'utf8'))
+            fp.write(ser)
+
+        print(shared_d)
         return hrefs
+
     except Exception as exc:
-        print('exc', exc)
+        print('exc', exc, url)
         return set()
 
-urls = ['https://unsplash.com/']
-for fn in glob.glob('./html_labels/*'):
-    txt = open(fn).read()
-    if txt != '':
-        urls += json.loads(txt)
+urls = ['https://unsplash.com/photos/D1IS5s5O9xo']
 while True:
     nexts = set()
-    with PPE(max_workers=16) as exe:
+    with PPE(max_workers=128) as exe:
         # for url in urls:
         #        nexts |= parallel(url)
         for hrefs in exe.map(parallel, urls):
             nexts |= hrefs
-        if len(nexts) == 0:
-            raise Exception('somethins wrong.')
-    urls = list(nexts)
+
+    if len(nexts) == 0:
+        nexts = set()
+        for fn in tqdm(glob.glob('links/*')):
+            try:
+                with open(fn) as fp:
+                    nexts |= set(json.load(fp))
+            except:
+                continue
+        urls = list(nexts)
+    else:
+        urls = list(nexts)

@@ -27,6 +27,9 @@
 - 5.1.2 閑話休題, AWSアカウントをバンされる
 - 5.2 公開プロキシ経由でのアクセス
 - 5.3 tor経由でのアクセス
+- 5.3.1 Dockerでtorのsocks5 proxyサーバを立てる
+- 5.3.2 環境変数でsocks5を指定する
+- 5.3.3 pythonでsocks5を指定する
 
 ## 6. Depth 3, MultiCore, Multi Machineでスクレイピングする
 - 6.1 Thread vs Multiprocessing
@@ -37,17 +40,18 @@
 - 7.2 スクレイピングの頻度を確率的にして調整
 
 
-## 7. Practice 1, 無料のphotstockをスクレイピングして大量のフリー画像を集める
-- 7.1 https://unsplash.com/
-- 7.2 シンプルな全探索アルゴリズム（順序なし）
+## 8. 練習 
+### 8.1 Practice 1, 無料のphotstockをスクレイピングして大量のフリー画像を集める
+- 8.1.1 https://unsplash.com/
+- 8.1.2 シンプルな全探索アルゴリズム（順序なし）
 
-## 8. Practice 2, Bingの検索機能を利用して、大量のグラビア写真を集める
+## 8.2 Practice 2, Bingの検索機能を利用して、大量のグラビア写真を集める
 
-## 9. Practice 3, YouTubeの動画をIP制限を回避しながらダウンロードする
+## 8.3 Practice 3, YouTubeの動画をIP制限を回避しながらダウンロードする
 
-## 10. 閑話休題1, GCPで間違ったクエリを送って事故ったときの話 
+## 9. 閑話休題1, GCPで間違ったクエリを送って事故ったときの話 
 
-## 11. 閑話休題2, リクエストが多すぎるとDNSが応答しなくなる
+## 10. 閑話休題2, リクエストが多すぎるとDNSが応答しなくなる
 
 # 1. 現代の最強の科学・意思決定法、定量分析
 ## 1.1 なぜ、定量分析が最強なのか
@@ -763,6 +767,73 @@ with open('proxies.json', 'w') as fp:
 
 ```
 
+### 5.3 tor経由でのアクセス
+
+よほどのことがない限りtorは使う機会が無いのですが、ダークウェブを定量的な視点で分析するなどのモチベーションがあればユースケースとして最適です。  
+
+tor経由でアクセスするとほぼ通信元がたどれなくなるという匿名性がありいます。  
+
+dockerを用いたサーバの立て方、環境変数を用いたアクセスの仕方、pythonのモジュール内で指定して悪世する方法をお伝えします。
+
+#### 5.3.1 Dockerでtorのsocks5 proxyサーバを立てる
+
+`socks5` というプロトコルでtorネットワーク経由でアクセスするproxyサーバを建てることができます。  
+
+サーバとなるLinuxなどで、以下のコマンドを入力するだけでサーバーが立ち上がります。
+
+```console
+$ docker run -d --restart=always -p 0.0.0.0:9150:9150 peterdavehello/tor-socks-proxy:latest 
+```
+
+conoha(IP:133.130.97.98)というクラウドサービスにサーバを建てて自宅のMac(IP:126.140.215.0)からアクセスして、IPアドレス確認サービスにIPを問い合わせると以下の結果が帰ってきました。
+
+```console
+$ curl --socks5-hostname 133.130.97.98:9150 https://ipinfo.tw/ip
+209.95.51.11
+```
+
+このIPを `whois` で確認すると以下のような結果が得られ、全く関係のないIP担っていることがわかります。（headerの特定可能な情報も削っているようです）
+```console
+OrgName:        Hosting Services, Inc.
+OrgId:          HOSTI-20
+Address:        517 W 100 N STE 225
+City:           Providence
+StateProv:      UT
+PostalCode:     84332
+Country:        US
+RegDate:        2008-03-03
+Updated:        2017-02-08
+Ref:            https://rdap.arin.net/registry/entity/HOSTI-20
+```
+
+#### 5.3.2 環境変数でsocks5を指定する
+環境変数に設定して用いるとproxyを広いレンジで用いることができて便利です。  
+torのプロトコルはsocks5hというものになっていて、curlでは用いることができるが、wgetはできないなどの微妙な成約があります。 
+
+```console
+$ export http_proxy=socks5h://133.130.97.98:9150
+$ export https_proxy=socks5h://133.130.97.98:9150
+$ export all_proxy=socks5h://133.130.97.98:9150
+```
+
+#### 5.3.3 Pythonでsocks5を指定する
+
+**requestsで用いるとき** 
+socksのサポートをpythonで行うため、このようなモジュールをインストールする必要があります。  
+```console
+$ pip install "requests[socks]"
+```
+pythonは以下のようなコードが期待されます。
+```python
+import requests
+proxies=dict(http='socks5h://133.130.97.98:9150',
+             https='socks5h://133.130.97.98:9150')
+r = requests.get('https://ipinfo.tw/ip', proxies=proxies)
+print(r.text)
+```
+出力は `109.70.100.30` でした。このIPの所有者は `TOR-EXIT--FOUNDATION-FOR-APPLIED-PRIVACY` ですので、無事隠蔽されました。   
+
+
 ## 6. Depth 3, MultiCore, Multi Machineでスクレイピングする
 現代のモダンなコンピュータはCPUを複数備えることが一般的になっています。  
 
@@ -973,8 +1044,13 @@ while True:
 
 この方法での並列化は2 ~ 10台程度では、ほとんど線形に性能が向上することが多く、気軽にハイパフォーマンス・コンピューティングをするのに向いている方法になります。  
 
+## 8. 練習
+この章では、いくつかの目的を設定してそれぞれのユースケース別に同スクレイピングをしていくのか実演形式でお伝えします。
 
-## 7. Practice 1, 無料のphotstockをスクレイピングして大量のフリー画像を集める
+### 8.1 Practice 1, 無料のphotstockをスクレイピングして大量のフリー画像を集める
+いくつかのサイトではphotostockと呼ばれる無料の写真を提供していることがあります。ブログのイメージ画像に設定したり、タグやなにかの属性が付与されていれば、機械学習に用いることができたりなど、汎用性が高いサービスです。  
+
+何らかの理由により、これらのデータが必要になった場合、どのような戦略で集めることができるかを述べます。  
 
 
 
