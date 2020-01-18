@@ -689,6 +689,79 @@ print(r.text)
 
 幸いにして、趣味のwebサービスや分析用インスタンスは、GCP, AWSどちらに依存することなくdocker-composeで済む用なモジュール単位でwebサービスを作っていたので事なきを得ましたが、AWSのサービスに結合したものを作っていたり、動かす金額が大きいと個人で責任を取れなくなってきます。
 
+### 5.2 公開プロキシ経由でのアクセス
+全て自分でサーバを建ててアクセス、を行わなくても、Proxyサーバ自体は多くの人にいろんな政治的・思想的理由があり、それを補助するためにあらゆる地域と国家で建てられていたりします。  
+
+例えば, `spys.one/en` では、ロシアのサーバに様々なproxyが公開されています。 
+
+<div align="center">
+  <img width="500px" src="https://www.dropbox.com/s/db9y0cr8nshwk37/%E3%82%B9%E3%82%AF%E3%83%AA%E3%83%BC%E3%83%B3%E3%82%B7%E3%83%A7%E3%83%83%E3%83%88%202020-01-17%2023.45.29.png?raw=1">
+  <div> 図.X spys.one/en</div>
+</div>
+
+このサイトでは、常にフレッシュなプロキシサーバが公開されて、IPバンリスクが高く、IPがすぐ何らかの理由でバンされてしまったとしても、すぐ次のプロキシに乗り換えることができます。  
+
+このバンされたらIPを乗り換える、ということを自動化しようとすると、実はハードルが一箇所あります。  
+<div align="center">
+  <img width="500px" src="https://www.dropbox.com/s/dzom1mq0rryxu3s/%E3%82%B9%E3%82%AF%E3%83%AA%E3%83%BC%E3%83%B3%E3%82%B7%E3%83%A7%E3%83%83%E3%83%88%202020-01-18%2011.56.46.png?raw=1">
+  <div> 図.X Proxyのポートの表示が実は、JavaScriptの演算で得られる</div>
+</div>
+JavaScriptでPortが描画されている、かつ、変数の定義がこの面だけは解析的に出すのが難しめの競プロのようになってしまっています。
+
+概して、このような障害がある際に、有効な方法はchromeのheadlessブラウザによるアクセスであり、JavaScriptを実行させてからhtmlをパースさせるという方法が有効です。  
+
+以下にchromedriverを用いて、google-chromeをheadlessで動作させて、`spys.one/en` からプロキシのリストを取得するコードを例示します。  
+
+```python
+from selenium import webdriver
+from selenium.webdriver.common.keys import Keys
+from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.common.action_chains import ActionChains
+from selenium.webdriver.common.by import By
+import time
+import re
+import requests
+from bs4 import BeautifulSoup
+import json
+
+options = Options()
+options.add_argument('--headless')
+options.add_argument(
+    "user-agent=Mozilla/5.0 (Macintosh; Intel Mac OS X 10_13_3) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/64.0.3282.186 Safari/537.36")
+options.add_argument(f"user-data-dir=/tmp/work")
+options.add_argument('lang=ja')
+options.add_argument('--disable-dev-shm-usage')
+options.add_argument("--window-size=1080,10800")
+driver = webdriver.Chrome(options=options,
+                          executable_path='/usr/bin/chromedriver')
+
+proxies = set()
+for proxy_src in ['http://spys.one/free-proxy-list/JP/', 'http://spys.one/en/free-proxy-list/']:
+    driver.get('http://spys.one/en/free-proxy-list/')
+    time.sleep(1.0)
+    driver.find_element_by_xpath(
+        "//select[@name='xpp']/option[@value='5']").click()
+    time.sleep(1.0)
+    html = driver.page_source
+    soup = BeautifulSoup(html)
+    [s.extract() for s in soup('script')]
+    #print(soup.title.text)
+    for tr in soup.find_all('tr'):
+        if len(tr.find_all('td')) == 10:
+            tds = tr.find_all('td')
+            ip_port = tds[0].text.strip()
+            protocol = re.sub(
+                r'\(.*?\)', '', tds[1].text.strip()).lower().strip()
+            proxy = f'{protocol}://{ip_port}'
+            proxies.add(proxy)
+proxies = list(proxies)
+
+with open('proxies.json', 'w') as fp:
+    json.dump(proxies, fp, indent=2)
+
+```
 
 ## 6. Depth 3, MultiCore, Multi Machineでスクレイピングする
 現代のモダンなコンピュータはCPUを複数備えることが一般的になっています。  
@@ -808,7 +881,100 @@ Multiprocessingの1プロセスがアクセスする先をファイルシステ�
 
 例えば、オーバーヘッドを避けるために、すでにスクレイピングしたURLのキーが共有フォルダー上に存在したら処理をスキップするなどが簡単に組めます。  
 
+例えばデータをホストするマシンを一台組み、nfsやsshfsなどで、リモートのマシンのフォルダーやハードディスクを共有すると同時に並列にアクセスできるようになります。
 
+スクレイピングしたurlをhtml等以外にもlinkをjson等で保存すれば、そのjsonファイルを別のマシンで読み書きできるようになります。  
+
+このコードはnfsでマウントしたSSD等から起動すると、どのマシンでも並列で実行できるよになります。
+
+```python
+import requests
+from bs4 import BeautifulSoup
+from concurrent.futures import ProcessPoolExecutor as PPE
+from urllib.parse import urlparse
+from hashlib import sha224
+from pathlib import Path
+from multiprocessing import Process, Manager
+import random
+import json
+import glob
+from tqdm import tqdm
+manager = Manager()
+domain_freq = manager.dict()
+
+def run(arg):
+    i, url = arg
+    mst_p = urlparse(url)
+    mst_netloc = mst_p.netloc
+    group_key = mst_netloc 
+    key = sha224(bytes(url, 'utf8')).hexdigest()[:24]
+    if Path(f'htmls/{group_key}/{key}').exists():
+        return set()
+    if Path(f'errs/{group_key}/{key}').exists():
+        return set()
+    try:
+        r = requests.get(url, timeout=30)
+
+        if mst_netloc not in domain_freq:
+            domain_freq[mst_netloc] = 0
+
+        all_count = sum(domain_freq.values())
+        if all_count > 10 and random.random() < domain_freq[mst_netloc]/all_count:
+            return set([url])
+        domain_freq[mst_netloc] += 1
+
+        mst_scheme = mst_p.scheme
+        soup = BeautifulSoup(r.text, 'html5lib')
+
+        next_urls = set()
+        for tag in soup.find_all('a', {'href': True}):
+            href = tag.get('href')
+            if 'javascript' in href:
+                continue
+            p = urlparse(href)
+            if p.netloc == '':
+                p = p._replace(scheme=mst_scheme, netloc=mst_netloc)
+
+            p = p._replace(params='')
+            p = p._replace(query='')
+
+            href = p.geturl()
+            next_urls.add(href)
+
+        Path(f'htmls/{group_key}').mkdir(exist_ok=True, parents=True)
+        with open(f'htmls/{group_key}/{key}', 'w') as fp:
+            fp.write(r.text)
+        Path(f'links/{group_key}').mkdir(exist_ok=True, parents=True)
+        with open(f'links/{group_key}/{key}', 'w') as fp:
+            fp.write(json.dumps(list(next_urls)))
+
+        return next_urls
+    except Exception as exc:
+        print(exc)
+        Path(f'errs/{group_key}').mkdir(exist_ok=True, parents=True)
+        Path(f'errs/{group_key}/{key}').touch()
+        return set()
+
+
+args = [(0, 'https://news.yahoo.co.jp/pickup/6348371')]
+while True:
+    next_urls = set()
+    with PPE(max_workers=32) as exe:
+        for _next_urls in exe.map(run, args):
+            next_urls |= _next_urls
+    if len(next_urls) == 0:
+        fns = glob.glob('links/*/*')
+        random.shuffle(fns)
+        for fn in tqdm(fns):
+            next_urls |= set(json.load(open(fn)))
+    print('do')
+    args = [(i, url) for i, url in enumerate(next_urls)]
+```
+
+この方法での並列化は2 ~ 10台程度では、ほとんど線形に性能が向上することが多く、気軽にハイパフォーマンス・コンピューティングをするのに向いている方法になります。  
+
+
+## 7. Practice 1, 無料のphotstockをスクレイピングして大量のフリー画像を集める
 
 
 
