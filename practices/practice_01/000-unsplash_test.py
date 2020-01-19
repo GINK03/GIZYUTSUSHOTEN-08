@@ -8,22 +8,22 @@ from hashlib import sha224
 from pathlib import Path
 import random
 import json
-
+import gzip
+from tqdm import tqdm
 
 def hashing(url):
     x = sha224(bytes(url, 'utf8')).hexdigest()
     return x
-
 
 def parallel(arg):
     try:
         url = arg
         print(url)
         r = requests.get(url)
-        soup = BeautifulSoup(r.text)
+        soup = BeautifulSoup(r.text, 'html5lib')
 
         x = hashing(url)
-        if Path(f'html_labels/{x}').exists():
+        if Path(f'htmls/{x}').exists():
             return set()
 
         hrefs = set()
@@ -34,7 +34,7 @@ def parallel(arg):
                 p = p._replace(query='')
                 src = p.geturl()
                 name = hashing(src)
-                print('query removed url', src, 'hashing', name)
+                #print('query removed url', src, 'hashing', name)
                 if Path(f'imgs/{name}.jpg').exists():
                     continue
                 r = requests.get(src)
@@ -53,14 +53,15 @@ def parallel(arg):
             except Exception as exc:
                 print(exc)
 
-        # 終了ラベル
         x = hashing(url)
-        if random.random() <= 0.8:
-            Path(f'html_labels/{x}').touch()
-        else:
-            fp = Path(f'html_labels/{x}').open('w')
-            json.dump(list(hrefs), fp)
+        with Path(f'links/{x}').open('w') as fp:
+            json.dump(list(hrefs), fp, indent=2)
+        with Path(f'htmls/{x}').open('wb') as fp:
+            html = r.text
+            ser = gzip.compress(bytes(html, 'utf8'))
+            fp.write(ser)
         return hrefs
+
     except Exception as exc:
         print('exc', exc)
         return set()
@@ -80,3 +81,9 @@ while True:
         if len(nexts) == 0:
             raise Exception('somethins wrong.')
     urls = list(nexts)
+
+    if len(urls) == 0:
+        urls = set()
+        for fn in tqdm(glob.glob('links/*')):
+            urls |= set(json.loads(open(fn)))
+        urls = list(urls)
