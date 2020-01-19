@@ -27,6 +27,9 @@
 - 5.1.2 閑話休題, AWSアカウントをバンされる
 - 5.2 公開プロキシ経由でのアクセス
 - 5.3 tor経由でのアクセス
+- 5.3.1 Dockerでtorのsocks5 proxyサーバを立てる
+- 5.3.2 環境変数でsocks5を指定する
+- 5.3.3 pythonでsocks5を指定する
 
 ## 6. Depth 3, MultiCore, Multi Machineでスクレイピングする
 - 6.1 Thread vs Multiprocessing
@@ -37,17 +40,20 @@
 - 7.2 スクレイピングの頻度を確率的にして調整
 
 
-## 7. Practice 1, 無料のphotstockをスクレイピングして大量のフリー画像を集める
-- 7.1 https://unsplash.com/
-- 7.2 シンプルな全探索アルゴリズム（順序なし）
+## 8. 練習 
+### 8.1 Practice 1, 無料のphotstockをスクレイピングして大量のフリー画像を集める
+- 8.1.1 https://unsplash.com/
+- 8.1.2 シンプルな全探索アルゴリズム（順序なし）
 
-## 8. Practice 2, Bingの検索機能を利用して、大量のグラビア写真を集める
+## 8.2 Practice 2, Bingの検索機能を利用して、大量のグラビア写真を集める
 
-## 9. Practice 3, YouTubeの動画をIP制限を回避しながらダウンロードする
+## 8.3 Practice 3, YouTubeの動画をIP制限を回避しながらダウンロードする
+ - TODO
 
-## 10. 閑話休題1, GCPで間違ったクエリを送って事故ったときの話 
+## 9. 閑話休題1, GCPで間違ったクエリを送って事故ったときの話 
+ - TODO
 
-## 11. 閑話休題2, リクエストが多すぎるとDNSが応答しなくなる
+## 10. 閑話休題2, リクエストが多すぎるとDNSが応答しなくなる
 
 # 1. 現代の最強の科学・意思決定法、定量分析
 ## 1.1 なぜ、定量分析が最強なのか
@@ -763,6 +769,73 @@ with open('proxies.json', 'w') as fp:
 
 ```
 
+### 5.3 tor経由でのアクセス
+
+よほどのことがない限りtorは使う機会が無いのですが、ダークウェブを定量的な視点で分析するなどのモチベーションがあればユースケースとして最適です。  
+
+tor経由でアクセスするとほぼ通信元がたどれなくなるという匿名性がありいます。  
+
+dockerを用いたサーバの立て方、環境変数を用いたアクセスの仕方、pythonのモジュール内で指定して悪世する方法をお伝えします。
+
+#### 5.3.1 Dockerでtorのsocks5 proxyサーバを立てる
+
+`socks5` というプロトコルでtorネットワーク経由でアクセスするproxyサーバを建てることができます。  
+
+サーバとなるLinuxなどで、以下のコマンドを入力するだけでサーバーが立ち上がります。
+
+```console
+$ docker run -d --restart=always -p 0.0.0.0:9150:9150 peterdavehello/tor-socks-proxy:latest 
+```
+
+conoha(IP:133.130.97.98)というクラウドサービスにサーバを建てて自宅のMac(IP:126.140.215.0)からアクセスして、IPアドレス確認サービスにIPを問い合わせると以下の結果が帰ってきました。
+
+```console
+$ curl --socks5-hostname 133.130.97.98:9150 https://ipinfo.tw/ip
+209.95.51.11
+```
+
+このIPを `whois` で確認すると以下のような結果が得られ、全く関係のないIP担っていることがわかります。（headerの特定可能な情報も削っているようです）
+```console
+OrgName:        Hosting Services, Inc.
+OrgId:          HOSTI-20
+Address:        517 W 100 N STE 225
+City:           Providence
+StateProv:      UT
+PostalCode:     84332
+Country:        US
+RegDate:        2008-03-03
+Updated:        2017-02-08
+Ref:            https://rdap.arin.net/registry/entity/HOSTI-20
+```
+
+#### 5.3.2 環境変数でsocks5を指定する
+環境変数に設定して用いるとproxyを広いレンジで用いることができて便利です。  
+torのプロトコルはsocks5hというものになっていて、curlでは用いることができるが、wgetはできないなどの微妙な成約があります。 
+
+```console
+$ export http_proxy=socks5h://133.130.97.98:9150
+$ export https_proxy=socks5h://133.130.97.98:9150
+$ export all_proxy=socks5h://133.130.97.98:9150
+```
+
+#### 5.3.3 Pythonでsocks5を指定する
+
+**requestsで用いるとき** 
+socksのサポートをpythonで行うため、このようなモジュールをインストールする必要があります。  
+```console
+$ pip install "requests[socks]"
+```
+pythonは以下のようなコードが期待されます。
+```python
+import requests
+proxies=dict(http='socks5h://133.130.97.98:9150',
+             https='socks5h://133.130.97.98:9150')
+r = requests.get('https://ipinfo.tw/ip', proxies=proxies)
+print(r.text)
+```
+出力は `109.70.100.30` でした。このIPの所有者は `TOR-EXIT--FOUNDATION-FOR-APPLIED-PRIVACY` ですので、無事隠蔽されました。   
+
+
 ## 6. Depth 3, MultiCore, Multi Machineでスクレイピングする
 現代のモダンなコンピュータはCPUを複数備えることが一般的になっています。  
 
@@ -973,8 +1046,197 @@ while True:
 
 この方法での並列化は2 ~ 10台程度では、ほとんど線形に性能が向上することが多く、気軽にハイパフォーマンス・コンピューティングをするのに向いている方法になります。  
 
+## 7. フェアネスを考慮したスクレイピング
+AWSやGCPで特定のとメインに対して高頻度でアクセスを行うと攻撃とみなされ、通信がシャットダウンされたりします。  
+また実際にアクセスが多すぎて、対象のサイトに対して過負荷を起こしていまうかもしれません。  
+いくつかのロジックにて過負荷を防ぐ方法があるので、ご紹介するとともに、どういったロジックで作成したかを説明します。  
 
-## 7. Practice 1, 無料のphotstockをスクレイピングして大量のフリー画像を集める
+### 7.1 ランダムドメイン選択 
+結局の所、攻撃とみなされる要素は特定のドメインに対して大量のリクエストを行うことで判定されるので、負荷を分散する必要があります。  
+もっと簡単なロジックでは、すべてのドメインに対して平等なスクレイピングの機会を与える方法で、以下のような構造のファイルシステムがある場合に、まず階層1のfolderからドメインを選択し、そのドメインのfolderないのURLを一つ選択し、そのURLを消去します。この操作をすべてのfolderが空になるまで繰り返し、空になったらスクレイピング終了です。（現実的な実世界のウェブページ数はものすごい数にのぼり、終了条件を満たせることはほぼありません）
+
+<div align="center">
+  <img width="500px" src="https://www.dropbox.com/s/f39me2llfwx40c8/2019-01-20-z1.png?raw=1">
+  <div> 図x. ランダムドメイン選択 </div>
+</div>
+
+この手法はすべてのURLに対して平等な負荷をかけることになるので、現実的に誰かに迷惑をかけるということがありません。しかしながら、特定のどのdomainに注力をするということもしないので、無限に薄く広く広がることになります。(これを防ぐには日本語のドメインに限定するなどすると良いです)
+   
+
+## 8. 練習
+この章では、いくつかの目的を設定してそれぞれのユースケース別に同スクレイピングをしていくのか実演形式でお伝えします。
+
+### 8.1 Practice 1, 無料のphotstockをスクレイピングして大量のフリー画像を集める
+いくつかのサイトではphotostockと呼ばれる無料の写真を提供していることがあります。ブログのイメージ画像に設定したり、タグやなにかの属性が付与されていれば、機械学習に用いることができたりなど、汎用性が高いサービスです。  
+
+何らかの理由により、これらのデータが必要になった場合、どのような戦略で集めることができるかを述べます。  
+
+#### 8.1.1 https://unsplash.com/
+対象とするサイトは `unsplash.com` としました。 
+
+このサイトは画像を大量に公開しているサイトで、商用利用等を含めて競合しない限り自由に利用してOKというすごい太っ腹なサイトです。  
+
+構造的にはシンプルですが、htmlの作りが機械的で法則性が弱く一部ヒューリスティックとアドホックを入れて対応することになります。  
+
+例えば、 `div` の classやidが唯一に特定できればそれが一番ありがたいのですが、特に指定がない構造であったり、では、順番によって特定できるかというと、ページによって再現性がなかったりなど、行き着くところはルールを発見し（ヒューリスティック）、場当たり的に対応（アドホック）するしかないです。  
+
+ウェブページに限らず、データがきれいに整備されているとき、ヒューリスティックとアドホックが多く入るとき、そのデータは完全性や完成度が低いとみなすことができますが、実際のデータ構造に近いので、練習になります。
+
+小さいコードを組んで、目的に対して動作するかを検証することから始めます。このときchromeやvivaldiなどで、タグ構造を把握しながら、どのような方針が適切か検討します。 
+
+<div align="center">
+<img width="600px" src="https://www.dropbox.com/s/60lmigecynmltk1/%E3%82%B9%E3%82%AF%E3%83%AA%E3%83%BC%E3%83%B3%E3%82%B7%E3%83%A7%E3%83%83%E3%83%88%202020-01-19%205.23.55.png?raw=1">
+<div> 図.x chromeの"検証"から挙動をチェックしている</div>
+</div>
+
+様々な角度でこのウェブサイトの構造を検証したところ、以下のことが判明しました。
+
+ - divのclass名がページごとのユニークなhashが与えられており、指定することができない
+ - 構造に多様性があるため "https://unsplash.com/photos" で始まるURLに限定して見たほうがいい
+ - 今回ほしい画像とその説明は最も大きい画像であり、その画像のみalt属性が存在し、それがフラグになりそうである
+ - "https://unsplash.com/photos/.{1,}/download" のURLを踏んでしまうと応答が帰ってこなく、requestsがtimeoutしてしまうので、このURLは避ける
+
+など、多くのこのドメイン限りのルールが判明しました。  
+
+以下にコードを記します。
+```python
+from concurrent.futures import ProcessPoolExecutor as PPE
+import glob
+import requests
+from bs4 import BeautifulSoup
+from urllib.parse import urlparse
+from hashlib import sha224
+from pathlib import Path
+import random 
+import json
+import gzip
+from tqdm import tqdm
+import re
+from multiprocessing import Process, Manager
+import time
+
+manager = Manager()
+shared_d = manager.dict({'requests':0, 'bs4':0, 'img_dl':0, 'href':0 })
+
+def hashing(url):
+    x = sha224(bytes(url, 'utf8')).hexdigest()[:16]
+    return x
+
+def parallel(arg):
+    try:
+        url = arg
+        mst_p = urlparse(url)
+
+        mst_p = mst_p._replace(query='')
+        url = mst_p.geturl()
+        if re.search('download$', url):
+            return set()
+        if 'https://unsplash.com/photos' not in url:
+            return set()
+
+        print(url)
+        start = time.time()
+        with requests.get(url) as r:
+            html = r.text
+        shared_d['requests'] += time.time() - start 
+
+        start = time.time()
+        soup = BeautifulSoup(html, 'lxml')
+                shared_d['bs4'] += time.time() - start 
+
+        mst_x = hashing(url)
+        if Path(f'htmls/{mst_x}').exists():
+            return set()
+
+        start = time.time()
+        for img in soup.find_all('img', {'src': re.compile('https://images.unsplash.com/photo'), 'alt':True}):
+            src = img.get('src')
+            alt = img.get('alt')
+            p = urlparse(src)
+            p = p._replace(query='')
+            src = p.geturl()
+            name = hashing(src)
+            #print('query removed url', src, 'hashing', name)
+            if Path(f'imgs/{mst_x}/{name}.jpg').exists():
+                continue
+            print('try download', src, alt, 'at', url)
+            with requests.get(src) as r:
+                binary = r.content
+            Path(f'imgs/{mst_x}').mkdir(exist_ok=True, parents=True)
+            with open(f'imgs/{mst_x}/{name}.jpg', 'wb') as fp:
+                fp.write(binary)
+            with open(f'imgs/{mst_x}/{name}.txt', 'w') as fp:
+                fp.write(alt)
+        shared_d['img_dl'] += time.time() - start 
+
+        start = time.time()
+        hrefs = set()
+        for a in soup.find_all('a', {'href': True}):
+            href = a.get('href')
+            try:
+                if href[0] == '/' or 'https://unsplash.com' in href:
+                    if href[0] == '/':
+                        href = 'https://unsplash.com' + href
+                    hrefs.add(href)
+                else:
+                    continue
+            except Exception as exc:
+                print(exc)
+        shared_d['href'] += time.time() - start 
+
+        x = hashing(url)
+        with Path(f'links/{x}').open('w') as fp:
+            json.dump(list(hrefs), fp, indent=2)
+        with Path(f'htmls/{x}').open('wb') as fp:
+            ser = gzip.compress(bytes(html, 'utf8'))
+            fp.write(ser)
+
+        print(shared_d)
+        return hrefs
+
+    except Exception as exc:
+        print('exc', exc, url)
+        return set()
+
+urls = ['https://unsplash.com/photos/D1IS5s5O9xo']
+while True:
+    nexts = set()
+    with PPE(max_workers=24) as exe:
+        # for url in urls:
+        #        nexts |= parallel(url)
+        for hrefs in exe.map(parallel, urls):
+            nexts |= hrefs
+
+    if len(nexts) == 0:
+        nexts = set()
+        for fn in tqdm(glob.glob('links/*')):
+            try:
+                with open(fn) as fp:
+                    nexts |= set(json.load(fp))
+            except:
+                continue
+        urls = list(nexts)
+    else:
+        urls = list(nexts)
+```
 
 
+## 10. 閑話休題2, リクエストが多すぎるとDNSが応答しなくなる
+膨大な通信を行うと、Googleの `8.8.8.8` やCloudFlareの `1.1.1.1` などにアクセスしてドメインを解決するのはかなりのコストであり、家や会社のルータでは膨大なリクエストを捌くにあたってすべてをGoogleやCloudFlareに投げると、だんだんDNSが応答してくれなくなってきます。 
+
+そのため、自前で簡単なDNSサーバを立てたほうがいいのですが、何年前か調べたDNSサーバの立て方が、実に簡単になっていたのでご紹介します。  
+
+```console
+$ docker run -d --restart=always \
+  --publish 53:53/tcp --publish 53:53/udp --publish 10000:10000/tcp \
+  --volume /srv/docker/bind:/data \
+  sameersbn/bind:9.11.3-20190706
+```
+なお、Ubuntuなどではデフォルトでport 53を専有するサービスがあるのでこれをstopしておく必要があるかもしれません。  
+```console
+$ sudo systemctl stop systemd-resolved
+$ sudo ln -sf /run/systemd/resolve/resolv.conf /etc/resolv.conf
+```
+
+これで何かドメインが与えられたときに、解決が自分のDNSを見るか（最初の一回だけキャッシュするために遅くなるが以降は早い）、毎回GoogleかCloudFlareに聞くかなど変わってくるので、総合的に自分のローカル環境にdockerなどでいいのでbind9を入れておくと便利です。 
 
