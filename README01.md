@@ -1253,6 +1253,11 @@ $ youtube-dl "https://www.youtube.com/watch?v=xxxxx" # xxxxはサンプル
 ```console
 $ youtube-dl --proxy 118.27.31.50:3128 "https://www.youtube.com/watch?v=xxxxxx"
 ```
+
+<div align="center">
+    <img width="100%" src="https://www.dropbox.com/s/h56hsxgb8wky670/%E3%82%B9%E3%82%AF%E3%83%AA%E3%83%BC%E3%83%B3%E3%82%B7%E3%83%A7%E3%83%83%E3%83%88%202020-01-22%208.55.29.png?raw=1">
+    <div> 図.X フリー素材をダウンロードする例 </div>
+</div>
  `spys.one/en` を更に別の章で紹介したgoogle chrome + seleniumでのダウンロードを用いることにより、Proxyの取得すら自動化できるので、ほぼ制限なしに使えるようになることできます。
 
  ※ すべての動画と音声がダウンロード可能ではありますが、法で規制されているコンテンツも多いので、十分に留意してください。
