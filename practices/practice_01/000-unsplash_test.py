@@ -10,19 +10,21 @@ import random
 import json
 import gzip
 from tqdm import tqdm
-<<<<<<< HEAD
-=======
+
 import re
 from multiprocessing import Process, Manager
 import time
 
 manager = Manager()
 shared_d = manager.dict({'requests':0, 'bs4':0, 'img_dl':0, 'href':0 })
->>>>>>> a97fd00cb89a85cbbb93b40984bf5933964ba71c
 
 def hashing(url):
-    x = sha224(bytes(url, 'utf8')).hexdigest()[:16]
-    return x
+    if isinstance(url, str):
+        x = sha224(bytes(url, 'utf8')).hexdigest()[:16]
+        return x
+    elif isinstance(url, bytes):
+        x = sha224(url).hexdigest()[:16]
+        return x
 
 def parallel(arg):
     try:
@@ -31,14 +33,14 @@ def parallel(arg):
 
         mst_p = mst_p._replace(query='')
         url = mst_p.geturl()
-        if re.search('download$', url):
-            return set()
-        if 'https://unsplash.com/photos' not in url:
+        
+        mst_x = hashing(url)
+        if Path(f'htmls/{mst_x}').exists():
             return set()
 
         print(url)
         start = time.time()
-        with requests.get(url) as r:
+        with requests.get(url, timeout=60) as r:
             html = r.text
         shared_d['requests'] += time.time() - start 
 
@@ -46,29 +48,22 @@ def parallel(arg):
         soup = BeautifulSoup(html, 'lxml')
         shared_d['bs4'] += time.time() - start 
 
-        mst_x = hashing(url)
-        if Path(f'htmls/{mst_x}').exists():
-            return set()
 
         start = time.time()
-        for img in soup.find_all('img', {'src': re.compile('https://images.unsplash.com/photo'), 'alt':True}):
+        for img in soup.find_all('img', {'alt':True}):
             src = img.get('src')
             alt = img.get('alt')
             p = urlparse(src)
             p = p._replace(query='')
             src = p.geturl()
-            name = hashing(src)
-            #print('query removed url', src, 'hashing', name)
-            if Path(f'imgs/{mst_x}/{name}.jpg').exists():
+            digest = hashing(src)
+            if Path(f'imgs/{digest}.jpg').exists():
                 continue
             print('try download', src, alt, 'at', url)
-            with requests.get(src) as r:
+            with requests.get(src, timeout=30) as r:
                 binary = r.content
-            Path(f'imgs/{mst_x}').mkdir(exist_ok=True, parents=True)
-            with open(f'imgs/{mst_x}/{name}.jpg', 'wb') as fp:
+            with open(f'imgs/{digest}.jpg', 'wb') as fp:
                 fp.write(binary)
-            with open(f'imgs/{mst_x}/{name}.txt', 'w') as fp:
-                fp.write(alt)
         shared_d['img_dl'] += time.time() - start 
 
         start = time.time()
@@ -101,9 +96,11 @@ def parallel(arg):
         return set()
 
 urls = ['https://unsplash.com/photos/D1IS5s5O9xo']
+
+[parallel(url) for url in urls]
 while True:
     nexts = set()
-    with PPE(max_workers=128) as exe:
+    with PPE(max_workers=16) as exe:
         for hrefs in exe.map(parallel, urls):
             nexts |= hrefs
 

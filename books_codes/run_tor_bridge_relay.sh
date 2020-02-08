@@ -1,0 +1,1 @@
+docker run -d -p 9001:9001 -p 9151:9151 -p 9030:9030 -e "OR_PORT=9001" -e "CONTROL_PORT=9151" -e "DIR_PORT=9030" -e "NICKNAME=YourRelayNickname" -e "CONTACT_INFO=contact@example.com" -e "BANDWIDTH_RATE=250 KBytes" -e "BANDWIDTH_BURST=500 KBytes" -e "MAX_MEM=512 MB" -e "HOST_UID=$UID" -v $(pwd)/tor-data:/home/tor/data:Z brunneis/tor-relay:x86-64 exit
