@@ -42,7 +42,7 @@ def put(urls):
         digest = get_digest(url)
         if Path(f'htmls/{digest}').exists():
             continue
-        netloc = o.netloc
+        netloc = '.'.join(o.netloc.split('.')[-2:])
         if netloc not in k_vs:
             k_vs[netloc] = set()
         k_vs[netloc].add(url)
@@ -74,7 +74,7 @@ if '--test' in sys.argv:
 
 if __name__ == "__main__":
     if '--init' in sys.argv:
-        for fn in tqdm(glob.glob('htmls/*')):
+        for fn in tqdm(glob.glob('htmls/*')[:64]):
             html = gzip.decompress(open(fn, 'rb').read())
             soup = BeautifulSoup(html, 'html5lib')
             urls = set()
