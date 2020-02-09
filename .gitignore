@@ -1,2 +1,10 @@
 ./practices/practice_01/html_labels/*
 ./practices/practice_01/imgs/*
+.DS_Store
+.vscode
+._*
+*.html
+node_modules
+package-lock.json
+*.pdf
+.python-version
