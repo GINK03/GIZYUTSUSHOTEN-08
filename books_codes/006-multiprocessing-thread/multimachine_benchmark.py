@@ -3,7 +3,7 @@ from pathlib import Path
 from bs4 import BeautifulSoup
 from tqdm import tqdm
 from urllib.parse import urlparse
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import ProcessPoolExecutor  # <- ここをThreadPoolExecutorに変えればThreadのパフォーマンスがわかる
 import random
 import requests
 import time
@@ -16,6 +16,11 @@ def get_digest(x):
 def process(arg):
     try:
         url = arg
+        # logですでに取得されていたら、取得をスキップする
+        # これはNFSでデータがマウントされていたら他のマシンでスクレイピングされていたら再度行わないということと等価である
+        if Path(f'logs/{get_digest(url)}').exists():
+            return set()
+
         with requests.get(url, timeout=5.0) as r:
             header = r.headers
             html = r.text
@@ -34,12 +39,13 @@ def process(arg):
 # ベンチマークに使うURLをlistで保存したjson
 with open('urls.json') as fp:
     urls = json.load(fp)
+# 必ずshuffleする
+random.shuffle(urls)
 NUM = 256
 print('total uniq domain(netloc) url size is', len(urls))
 start = time.time()
 hrefs = set()
-#[process(url) for url in urls]
-with ThreadPoolExecutor(max_workers=NUM) as exe:
+with ProcessPoolExecutor(max_workers=NUM) as exe:
     for child_hrefs in tqdm(exe.map(process, urls), total=len(urls)):
         hrefs |= child_hrefs
 
