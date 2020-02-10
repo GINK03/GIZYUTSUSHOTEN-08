@@ -5,7 +5,7 @@
 
 <div align="center">
 <img width="70%" src="https://upload.wikimedia.org/wikipedia/commons/1/17/Chaos_Theory_%26_Double_Pendulum_-_3.jpg">
-<div>図x. 二重振り子の軌跡、この例ですら解析的に解くのは手計算では難しい</div>
+<div>図 1. 二重振り子の軌跡、この例ですら解析的に解くのは手計算では難しい</div>
 </div>
 
 では、ワクチンの副反応が実際に存在するとか、その影響度合いなどは結局複雑だからわからない、という疑問が出るかと思います。この課題に対して、答えを与えうるのが、定量分析になります。  
@@ -14,7 +14,7 @@
 
 
 <div align="center">
-<div>表 x. </div>
+<div>表 1. </div>
 <img width="100%" src="https://www.dropbox.com/s/si8gl7sbt1zk8tr/%E3%82%B9%E3%82%AF%E3%83%AA%E3%83%BC%E3%83%B3%E3%82%B7%E3%83%A7%E3%83%83%E3%83%88%202019-12-31%2015.19.34.png?raw=1">
 
 </div>
