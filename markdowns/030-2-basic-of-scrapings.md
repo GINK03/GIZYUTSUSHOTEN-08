@@ -18,7 +18,7 @@ $ pip install requests bs4
 
 <div align="center">
 <img width="100%" src="https://www.dropbox.com/s/yr70t5z9ymj0z95/%E3%82%B9%E3%82%AF%E3%83%AA%E3%83%BC%E3%83%B3%E3%82%B7%E3%83%A7%E3%83%83%E3%83%88%202020-01-03%202.01.30.png?raw=1">
-<div>図 x. インストール成功時に期待する画面</div>
+<div>図 1. インストール成功時に期待する画面</div>
 </div>
 
 #### Pythonのファイルを書いて実行する
@@ -65,19 +65,30 @@ if __name__ == '__main__':
 
 このコードで以下のような出力が得られました。
 
-<div align="center">
-<img width="100%" src="https://www.dropbox.com/s/rlt2suifvxnvuzm/%E3%82%B9%E3%82%AF%E3%83%AA%E3%83%BC%E3%83%B3%E3%82%B7%E3%83%A7%E3%83%83%E3%83%88%202020-01-03%202.35.28.png?raw=1">
-<div>図 x. インストール成功時に期待する画面</div>
-</div>
+```console
+$ python3 yahoo_title_get.py
+衆院議員の秋元被告 保釈決定 https://news.yahoo.co.jp/pickup/6350771
+中国 出勤再開も「暖房停止」 https://news.yahoo.co.jp/pickup/6350762
+元看護助手 検察側が求刑放棄 https://news.yahoo.co.jp/pickup/6350770
+泥ついたリンゴ 廃業した農家 https://news.yahoo.co.jp/pickup/6350760
+炭酸水市場「甘くない戦い」 https://news.yahoo.co.jp/pickup/6350772
+カズ・ヒロ氏 2度目オスカー https://news.yahoo.co.jp/pickup/6350774
+アカデミー脚本賞はパラサイト https://news.yahoo.co.jp/pickup/6350764
+松たか子 米アカデミーで歌唱 https://news.yahoo.co.jp/pickup/6350767
+もっと見る https://news.yahoo.co.jp/topics/top-picks?date=20200210&mc=f&mp=f
+記事一覧 https://news.yahoo.co.jp/fc
+ニュース https://news.yahoo.co.jp/
+```
 
-これでヤフー砲を監視するスクリプトが書けますね。株価に重大な影響を及ぼすファクターだけに、いち早く察知することができるので他の人手の投資家に対して自動化などで先んじることができそうです。
+これでヤフー砲を監視するスクリプトが可能になりした。ヤフーニュースは株価に重大な影響を及ぼすファクターだけに、いち早く察知することができるので他の人手の投資家に対して自動化などで先んじることができそうです。
 
 BeautifulSoupはタグの種類とタグに与えられているプロパティのような要素で検索するようにアクセスすることができ、　`soup.find_all('a', {'href':re.compile('https://news.yahoo.co.jp*')})`は、 `<a>` のタグに対して `hrefで正規表現でhttps://news.yahoo.co.jp` に一致する範囲のタグをすべてリストで取り出す、という操作になります。
 
-このタグはchromeのインスペクタで見たときと差があることに気づくと思います。実は、requestsではhttp, httpsで情報をくれというリクエストを投げるだけですのでJavaScript等の解釈ができません。つまり、JavaScriptが動くことで初めて描画されるようなコンテンツに関しては、全くのスルーになり、Google Chromeなどで見たときのhtml構造とは異なる事があるので、注意してください。Google ChromeなどでJavaScriptを停止するChrome拡張などを入れてhtmlの構造を最初に把握しておくと良いです。
+このタグはchromeのインスペクタで見たときと差があることに気づくと思います。requestsでは"http, httpsで情報をくれ"というリクエストを投げるだけですのでJavaScript等の解釈ができません。つまり、JavaScriptが動くことで初めて描画されるようなコンテンツに関しては、検知することができず、Google Chromeなどで見たときのhtml構造とは異なる事があるので、注意してください。
 
 ## 2.2 Google Chrome + Seleniumでスクレイピングする
-そもそもrequestsだけでスクレイピングが完結してしまうような構造のウェブサイトは多くのスクレイパーの餌食になると想像が付きます。  
+
+requestsだけでスクレイピングが完結してしまうような構造のウェブサイトは多くのスクレイパーの餌食になると想像が付きます。  
 
 このとき、スクレイピングする側と、ウェブサイト側のスクレイピングされる側に利益相反などがあると、スクレイピング難易度を上げて防御的な構造を取ることが多くあります。  
 
@@ -87,9 +98,12 @@ requestsで取得する際にはJavaScriptが動作しないので、コンテ�
 数年前のPixivは割と簡単な構造で構築されており、簡単に殆どのイラストを収集することができましたが、現在はJavaScriptで多くのコンテンツをラップすることで、簡単には解析されないようにしています。  
 
 例えば、このようなコンテンツをユーザ側のブラウザで見ることができました。  
+
+(Pixiv様のサイトのコンテンツの画像を含みますが、これは著作権法３２条・1. "公表された著作物は、引用して利用することができる。この場合において、その引用は、公正な慣行に合致するものであり、かつ、報道、批評、研究その他の引用の目的上正当な範囲内で行なわれるものでなければならない。"を論拠に、技術的な検証の観点として、引用させていただきます[1])
+
 <div align="center">
   <img width="450px" src="https://www.dropbox.com/s/bvvh4pt0yraq08h/Screen%20Shot%202020-01-14%20at%2018.04.29.png?raw=1">
-  <div>図 x. https://www.pixiv.net/artworks/75863105 </div>
+  <div>図 2. 参考: https://www.pixiv.net/artworks/75863105 </div>
 </div>
 
 では、このhtmlを解析しようとして、requestsでhtmlを取得して解析してみましょう。  
@@ -108,19 +122,18 @@ for div in soup.find_all('div'):
 期待としては、大量のdivタグの構造を取得できるはずですが、実際の2020年1月時点での出力は以下のようになります。  
 
 ```console
-$ python3 006.py
+$ python3 pixiv_minimal_example.py 
 <div id="root"></div>
 ```
 このプログラムは巻末のgithubからダウンロードできます。
 
-では、どうやってマミミのイラストを集めればいいのでしょうか？  
+では、どうやってイラストを集めればいいのでしょうか？  
+
 シンプルで簡単な解決法としてGoogle Chromeをseleniumで動作させることで、期待する動作を得ることができます。  
 
 ### 2.2.2 Pixivを例に取る: Google Chrome + Seleniumでデータを取得する
 
-SeleniumとChromeDriverはインストール済みという前提で進めると、以下のコードでこのマミミのサイトのhtmlを取得できるはずです。  
-
-(Pixiv様のサイトのコンテンツの画像を含みますが、これは著作権法３２条・1. "公表された著作物は、引用して利用することができる。この場合において、その引用は、公正な慣行に合致するものであり、かつ、報道、批評、研究その他の引用の目的上正当な範囲内で行なわれるものでなければならない。"を論拠に、技術的な検証の観点として、引用させていただきます[1])
+SeleniumとChromeDriverはインストール済みという前提で進めると、以下のコードでこのPixivのhtmlを取得できるはずです。  
 
 ```python
 # headless google-chromeの例
@@ -136,25 +149,25 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 
-HOME = os.environ['HOME']
-target_url = 'https://www.pixiv.net/artworks/75863105'
+HOME = os.environ["HOME"]
+target_url = "https://www.pixiv.net/artworks/75863105"
 options = Options()
 options.add_argument("--headless")
-options.add_argument('window-size=2024x2024')
-options.add_argument(f'user-data-dir=work_dir')
-options.binary_location = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'
+options.add_argument("window-size=2024x2024")
+options.add_argument(f"user-data-dir=work_dir")
+options.binary_location = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
 
-driver = webdriver.Chrome(executable_path=shutil.which('chromedriver'), options=options)
+driver = webdriver.Chrome(executable_path=shutil.which("chromedriver"), options=options)
 driver.get(target_url)
 time.sleep(5.0)
 html = driver.page_source
-soup = BeautifulSoup(html, 'html5lib')
-driver.save_screenshot("screenshot.png")
+soup = BeautifulSoup(html, "html5lib")
+driver.save_screenshot("pixiv_google_chrome_minimal_screenshot.png")
 ```
 
 <div align="center">
   <img width="450px" src="https://www.dropbox.com/s/nint3yia9uei7n7/Untitled.png?raw=1">
-  <div>図 1. 結果 </div>
+  <div>図 3. 結果 </div>
 </div>
 
 残念ながら、ログインしていないため、マミミは見ることができません。  
@@ -184,44 +197,48 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 
-HOME = os.environ['HOME']
-EMAIL = os.environ['EMAIL']
-PASSWORD = os.environ['PASSWORD']
+HOME = os.environ["HOME"]
+EMAIL = os.environ["EMAIL"]
+PASSWORD = os.environ["PASSWORD"]
 
-target_url = 'https://www.pixiv.net/artworks/75863105'
+target_url = "https://www.pixiv.net/artworks/75863105"
 options = Options()
 options.add_argument("--headless")
-options.add_argument('window-size=2024x2024')
-options.add_argument(f'user-data-dir=work_dir')
-options.binary_location = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'
+options.add_argument("window-size=2024x2024")
+options.add_argument(f"user-data-dir=work_dir")
+options.binary_location = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
 
-driver = webdriver.Chrome(executable_path=shutil.which('chromedriver'), options=options)
-if not Path('init_chrome').exists():
-    driver.get('https://accounts.pixiv.net/login')
+driver = webdriver.Chrome(executable_path=shutil.which("chromedriver"), options=options)
+if not Path("init_chrome").exists():
+    driver.get("https://accounts.pixiv.net/login")
     time.sleep(2.0)
 
-    elm = driver.find_element_by_xpath('''//input[@autocomplete="username"]''')
+    elm = driver.find_element_by_xpath("""//input[@autocomplete="username"]""")
     elm.click()
     elm.send_keys(EMAIL)
-    elm = driver.find_element_by_xpath('''//input[@autocomplete="current-password"]''')
+    elm = driver.find_element_by_xpath("""//input[@autocomplete="current-password"]""")
     elm.click()
     elm.send_keys(PASSWORD)
     time.sleep(1.0)
-    elm = driver.find_element_by_xpath('''//div[@id='LoginComponent']//button[@class='signup-form__submit']''')
+    elm = driver.find_element_by_xpath(
+        """//div[@id='LoginComponent']//button[@class='signup-form__submit']"""
+    )
     elm.click()
     time.sleep(5.0)
-    Path('init_chrome').touch()
+    Path("init_chrome").touch()
 
-driver.get(target_url) # ここでまみみのページがログイン状態を保存してアクセスしてほしい
+driver.get(target_url)  # ここでまみみのページがログイン状態を保存してアクセスしてほしい
 time.sleep(5.0)
 html = driver.page_source
-soup = BeautifulSoup(html, 'html5lib')
-driver.save_screenshot("screenshot.png") # screenshotを取得する
+soup = BeautifulSoup(html, "html5lib")
+driver.save_screenshot(
+    "pixiv_google_chrome_autologin_and_get_pics_screenshot.png"
+)  # screenshotを取得する
 ```
 
 <div align="center">
 <img width="600px" src="https://www.dropbox.com/s/zjz0sxaryd685zu/Untitled2.png?raw=1">
-<div>図 2. 最終的な出力のscreenshot.png, ただしくマミミが表示されている</div>
+<div>図 4. 最終的な出力のscreenshot.png, ただしくマミミが表示されている</div>
 </div>
 
 Seleniumを用いれば、様々なWebサービスにログインして、コンテンツを表示した状態でスクレイピングできることを示しました。  
@@ -234,7 +251,7 @@ Seleniumを用いれば、様々なWebサービスにログインして、コン
 
 <div align="center">
 <img width="600px" src="https://www.dropbox.com/s/07c2lcso578muxc/web.png?raw=1">
-<div>図 3. インターネットのhyper linkの依存関係の例</div>
+<div>図 5. インターネットのhyper linkの依存関係の例</div>
 </div>
 
 このとき、どこからどのようにスクレイピングすれば、サイト全体を取得することが可能になるのでしょうか。  
@@ -298,20 +315,25 @@ depth = 0
 for I in range(3):
     depth += 1
     for depth_, url in urls:
-        html = requests.get(url).text
-        soup = BeautifulSoup(html, features="html.parser")
-        for a in soup.find_all('a', {'href':re.compile(r'.*?\.yahoo\.co\.jp')}):
-            next_url = a.get('href')
-            if next_url not in flatten_urls:
-                all_urls.add(DepthUrl(depth, next_url))
+        print('深さ', depth_, 'URL', url)
+        try:
+            with requests.get(url) as r:
+                html = r.text
+            soup = BeautifulSoup(html)
+            for a in soup.find_all('a', {'href': re.compile(r'^https://.*?\.yahoo\.co\.jp')}):
+                next_url = a.get('href')
+                if next_url not in flatten_urls:
+                    all_urls.add(DepthUrl(depth_+1, next_url))
+        except Exception as exc:
+            continue
         flatten_urls.add(url)
         all_urls -= {DepthUrl(depth_, url)}
-    urls = sorted(all_urls, key=lambda x:x[0])
-    min_depth = min([url.depth for url in urls]) # ここに注目
+    urls = sorted(all_urls, key=lambda x: x[0])
+    min_depth = min([url.depth for url in urls])  # ここに注目
     urls = [url for url in urls if url.depth == min_depth]
 ```
 
-最も深さが浅いものをスクレイピングするように `min_depth` を算出していますが、ここを `max_depth` に変更したり、一定のルールでビーム幅を設定して計算量を抑えることでビームサーチに実装を変更することができます。  
+最も深さが浅いものを優先してスクレイピングするように `min_depth` を算出していますが、ここを `max_depth` に変更したり、一定のルールで探索範囲を限定することでビーム幅を設定してビームサーチに実装を変更することができます。  
 
 ### 2.4 スクレイピングと法的問題
 スクレイピングに関連する問題として常に隣接しているのは法的な問題点です。  
