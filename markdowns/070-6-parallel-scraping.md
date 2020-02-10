@@ -43,60 +43,66 @@ ProcessPoolExcutorがマルチプロセスで、ThreadPoolExecutorがGILとい�
 ```python
 from urllib.parse import urlparse
 from pathlib import Path
-
 from bs4 import BeautifulSoup
 from tqdm import tqdm
 from urllib.parse import urlparse
-from concurrent.futures import ProcessPoolExecutor
-import pickle
+from concurrent.futures import ProcessPoolExecutor  # <- ここをThreadPoolExecutorに変えればThreadのパフォーマンスがわかる
 import random
 import requests
 import time
-with open('002.pkl', 'rb') as fp:
-    netloc_urls = pickle.load(fp)
+import json
+from hashlib import sha224
 
-urls = []
-for netloc, _urls in netloc_urls.items():
-        if len(_urls) >= 10:
-                url = random.sample(list(_urls), k=1)[0]
-                urls.append(url)
+def get_digest(x):
+    return sha224(bytes(x,'utf8')).hexdigest()[:16]
 
+def process(arg):
+    try:
+        url = arg
+        with requests.get(url, timeout=5.0) as r:
+            header = r.headers
+            html = r.text
+        if 'text/html' not in header.get('Content-Type'):
+            return set()
+        soup = BeautifulSoup(html, 'lxml')
+        hrefs = set()
+        for a in soup.find_all('a', {'href': True}):
+            hrefs.add(a.get('href'))
+        Path(f'logs/{get_digest(url)}').touch()
+        return hrefs
+    except Exception as exc:
+        #print(exc)
+        return set()
+
+# ベンチマークに使うURLをlistで保存したjson
+with open('urls.json') as fp:
+    urls = json.load(fp)
+NUM = 256
 print('total uniq domain(netloc) url size is', len(urls))
-
-def parallel(arg):
-        try:
-                url = arg
-                print(url)
-                r = requests.get(url, timeout=5.0)
-                soup = BeautifulSoup(r.text, 'html5lib')
-                hrefs = set()
-                for a in soup.find_all('a', {'href':True}):
-                        a.get('href')
-                return hrefs
-        except Exception as exc:
-                print(exc)
-                return set()
-
 start = time.time()
 hrefs = set()
-with ProcessPoolExecutor(max_workers=16) as exe:
-        for child_hrefs in exe.map(parallel, urls):
-                hrefs |= child_hrefs
+with ProcessPoolExecutor(max_workers=NUM) as exe:
+    for child_hrefs in tqdm(exe.map(process, urls), total=len(urls)):
+        hrefs |= child_hrefs
+
+print(f'total result urls = {len(hrefs)}')
 elapsed = time.time() - start
 print(f'elapsed time {elapsed}')
 ```
 
 **MultiProcessingの結果**
 ```console
-$ python3 003-multiprocess.py
-elapsed time 496.5804433822632
+$ python3 multiprocessing_benchmark.py
+...
+elapsed time 242.38
 ```
 単位は秒になります。  
 
 **Threadingの結果**
 ```console
-$ python3 003-threading.py
-elapsed time 1580.4620769023895
+$ python3 thread_benchmark.py
+...
+elapsed time 1580.46
 ```
 単位は秒になります。
 
@@ -123,87 +129,60 @@ Multiprocessingの1プロセスがアクセスする先をファイルシステ�
 このコードはnfsでマウントしたSSD等から起動すると、どのマシンでも並列で実行できるよになります。
 
 ```python
-import requests
-from bs4 import BeautifulSoup
-from concurrent.futures import ProcessPoolExecutor as PPE
 from urllib.parse import urlparse
-from hashlib import sha224
 from pathlib import Path
-from multiprocessing import Process, Manager
-import random
-import json
-import glob
+from bs4 import BeautifulSoup
 from tqdm import tqdm
-manager = Manager()
-domain_freq = manager.dict()
+from urllib.parse import urlparse
+from concurrent.futures import ProcessPoolExecutor  # <- ここをThreadPoolExecutorに変えればThreadのパフォーマンスがわかる
+import random
+import requests
+import time
+import json
+from hashlib import sha224
 
-def run(arg):
-    i, url = arg
-    mst_p = urlparse(url)
-    mst_netloc = mst_p.netloc
-    group_key = mst_netloc 
-    key = sha224(bytes(url, 'utf8')).hexdigest()[:24]
-    if Path(f'htmls/{group_key}/{key}').exists():
-        return set()
-    if Path(f'errs/{group_key}/{key}').exists():
-        return set()
+def get_digest(x):
+    return sha224(bytes(x,'utf8')).hexdigest()[:16]
+
+def process(arg):
     try:
-        r = requests.get(url, timeout=30)
+        url = arg
+        # logですでに取得されていたら、取得をスキップする
+        # これはNFSでデータがマウントされていたら他のマシンでスクレイピングされていたら再度行わないということと等価である
+        if Path(f'logs/{get_digest(url)}').exists():
+            return set()
 
-        if mst_netloc not in domain_freq:
-            domain_freq[mst_netloc] = 0
-
-        all_count = sum(domain_freq.values())
-        if all_count > 10 and random.random() < domain_freq[mst_netloc]/all_count:
-            return set([url])
-        domain_freq[mst_netloc] += 1
-
-        mst_scheme = mst_p.scheme
-        soup = BeautifulSoup(r.text, 'html5lib')
-
-        next_urls = set()
-        for tag in soup.find_all('a', {'href': True}):
-            href = tag.get('href')
-            if 'javascript' in href:
-                continue
-            p = urlparse(href)
-            if p.netloc == '':
-                p = p._replace(scheme=mst_scheme, netloc=mst_netloc)
-
-            p = p._replace(params='')
-            p = p._replace(query='')
-
-            href = p.geturl()
-            next_urls.add(href)
-
-        Path(f'htmls/{group_key}').mkdir(exist_ok=True, parents=True)
-        with open(f'htmls/{group_key}/{key}', 'w') as fp:
-            fp.write(r.text)
-        Path(f'links/{group_key}').mkdir(exist_ok=True, parents=True)
-        with open(f'links/{group_key}/{key}', 'w') as fp:
-            fp.write(json.dumps(list(next_urls)))
-
-        return next_urls
+        with requests.get(url, timeout=5.0) as r:
+            header = r.headers
+            html = r.text
+        if 'text/html' not in header.get('Content-Type'):
+            return set()
+        soup = BeautifulSoup(html, 'lxml')
+        hrefs = set()
+        for a in soup.find_all('a', {'href': True}):
+            hrefs.add(a.get('href'))
+        Path(f'logs/{get_digest(url)}').touch()
+        return hrefs
     except Exception as exc:
-        print(exc)
-        Path(f'errs/{group_key}').mkdir(exist_ok=True, parents=True)
-        Path(f'errs/{group_key}/{key}').touch()
+        #print(exc)
         return set()
 
+# ベンチマークに使うURLをlistで保存したjson
+with open('urls.json') as fp:
+    urls = json.load(fp)
+# 必ずshuffleする
+random.shuffle(urls)
+NUM = 256
+print('total uniq domain(netloc) url size is', len(urls))
+start = time.time()
+hrefs = set()
+with ProcessPoolExecutor(max_workers=NUM) as exe:
+    for child_hrefs in tqdm(exe.map(process, urls), total=len(urls)):
+        hrefs |= child_hrefs
 
-args = [(0, 'https://news.yahoo.co.jp/pickup/6348371')]
-while True:
-    next_urls = set()
-    with PPE(max_workers=32) as exe:
-        for _next_urls in exe.map(run, args):
-            next_urls |= _next_urls
-    if len(next_urls) == 0:
-        fns = glob.glob('links/*/*')
-        random.shuffle(fns)
-        for fn in tqdm(fns):
-            next_urls |= set(json.load(open(fn)))
-    print('do')
-    args = [(i, url) for i, url in enumerate(next_urls)]
+print(f'total result urls = {len(hrefs)}')
+elapsed = time.time() - start
+print(f'elapsed time {elapsed}')
 ```
 
 この方法での並列化は2 ~ 10台程度では、ほとんど線形に性能が向上することが多く、気軽にハイパフォーマンス・コンピューティングをするのに向いている方法になります。  
