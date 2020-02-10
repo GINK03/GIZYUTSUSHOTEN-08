@@ -9,6 +9,7 @@ import random
 from hashlib import sha224
 from concurrent.futures import ProcessPoolExecutor
 
+Path('db').mkdir(exist_ok=True)
 Datum = namedtuple('Datum', ['depth', 'domain', 'html', 'links'])
 
 
@@ -35,7 +36,7 @@ def isExists(url):
 def parallel(arg):
     url, depth = arg
     if isExists(url) is True:
-        return 
+        return
     depth = 1
     dummy_html = '<html> dummy </html>'
     dummy_domain = 'example.com'
@@ -48,11 +49,3 @@ dummy_urls = [f'{k:04d}' for k in range(1000)]
 dummy_urls = [(random.choice(dummy_urls), i) for i in range(10000)]
 with ProcessPoolExecutor(max_workers=8) as exe:
     exe.map(parallel, dummy_urls)
-
-'''
-urls = ['https://www.yahoo.co.jp/']
-for cnt in count(0):
-    next_urls = set()
-    for url in urls:
-        r = requests
-'''
