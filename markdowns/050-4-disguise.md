@@ -40,7 +40,7 @@ r = requests.get('https://www.yahoo.co.jp/', headers=headers)
 
 ### 4.3 Referrerを偽装する
 
-Referrerは翌千になんのサイトを見ていたかを示すものです。 
+Referrerは直前になんのサイトを見ていたかを示すものです。 
 
 現在、Referrerが要素がクローラーであるかどうかを判断する要素にはなりませんが、昔からあるレガシーなクローラーを弾く作法の一つに、Referreで判断するサイトもあります。  
 

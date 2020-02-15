@@ -9,7 +9,7 @@ $ docker run -d --restart=always \
   --volume /srv/docker/bind:/data \
   sameersbn/bind:9.11.3-20190706
 ```
-なお、Ubuntuなどではデフォルトでport 53を専有するサービスがあるのでこれをstopしておく必要があることがあります。  
+なお、Ubuntuなどではデフォルトでport 53を専有するサービスがあるのでこれをstopしておく必要な場合があります。  
 
 ```console
 $ sudo systemctl stop systemd-resolved

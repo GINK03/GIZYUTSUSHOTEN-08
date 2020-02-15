@@ -69,3 +69,7 @@ for fn in glob.glob(f'{TOP_FOLDER}/markdowns/*.md'):
     if '--pdf' in sys.argv:
         os.system(f'{TOP_FOLDER}/util/print-via-chrome.js 9222 {TOP_FOLDER}/var/{NAME_NO_SUFFIX}_01.html {TOP_FOLDER}/var/{NAME_NO_SUFFIX}.pdf')
 
+# here is join command
+cmd = '"/System/Library/Automator/Combine PDF Pages.action/Contents/Resources/join.py"'
+input_args = ' '.join(sorted(glob.glob(f'{TOP_FOLDER}/var/*.pdf')))
+os.system(f'''{cmd} -o combine.pdf {input_args}''')

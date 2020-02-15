@@ -26,17 +26,17 @@ ProcessPoolExcutorがマルチプロセスで、ThreadPoolExecutorがGILとい�
 
 つまりユースケースに応じて、並列化の手法を使い分ければ良いとわかります。  
 
-例えば今回の主ミッションであるスクレイピングにたいしては、ThreadとMultiprocessはどちらが良いのでしょうか？
+例えば今回の主ミッションであるスクレイピングに対しては、ThreadとMultiprocessはどちらが良いのでしょうか？
 
 ### 6.1 Thread vs Multiprocessing
 では、実際にスクレイピングの文脈に対しては、ThreadとMultiprocessingはどちらが効果的に動作するのでしょうか。  
 
 実際にユニークなドメイン `5443件` のURLに全量をスクレイピングするのにどの程度かかるかを示します。  
 
-スクレイピングの速度をベンチマークするに当たって、ドメインを限定するは不適切ですので、ドメインでユニークにすることで負荷を分散しました。  
+スクレイピングの速度をベンチマークするに当たって、ドメインを限定するのは不適切ですので、ドメインでユニークにすることで負荷を分散しました。  
 
 
-なお、使っているwrapperが `concurrent.futures.ProcessPoolExecutor` か `concurrent.futures.ThreadPoolExecutor` の違い飲みになっているのでここでは、Multiprocessの方のコードだけを例示します。  
+なお、使っているwrapperが `concurrent.futures.ProcessPoolExecutor` か `concurrent.futures.ThreadPoolExecutor` の違いになっているので、ここでは、Multiprocessの方のコードだけを例示します。  
 
 必要に応じで、巻末のgithubのリンクを参照してください。　　
 
@@ -126,7 +126,7 @@ Multiprocessingの1プロセスがアクセスする先をファイルシステ�
 
 スクレイピングしたurlをhtml等以外にもlinkをjson等で保存すれば、そのjsonファイルを別のマシンで読み書きできるようになります。  
 
-このコードはnfsでマウントしたSSD等から起動すると、どのマシンでも並列で実行できるよになります。
+このコードはnfsでマウントしたSSD等から起動すると、どのマシンでも並列で実行できるようになります。
 
 ```python
 from urllib.parse import urlparse
