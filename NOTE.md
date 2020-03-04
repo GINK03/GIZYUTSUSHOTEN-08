@@ -14,10 +14,19 @@
 また、著作権は主張したいのですが、GitHubからダウンロードしたコンテンツを教育目的や学術目的でシェアする分には構いませんので自由に使っていただけると幸いです。
 
 **GitHub版(無料)**  
- - https://github.com/GINK03/GIZYUTSUSHOTEN-08/blob/master/GIZYUTSUSHOTEN-08.pdf
+<div align="center">
+  <a href="https://github.com/GINK03/GIZYUTSUSHOTEN-08/blob/master/GIZYUTSUSHOTEN-08.pdf">
+   <img src="https://user-images.githubusercontent.com/4949982/75841165-624e2e80-5e10-11ea-93a4-3e685087a26d.png">
+  </a>
+</div>
+
 
 **BOOTHでの販売**  
- - https://twovolts.booth.pm/items/1880819
+<div align="center">
+  <a href="https://twovolts.booth.pm/items/1880819">
+   <img src="https://user-images.githubusercontent.com/4949982/75841177-67ab7900-5e10-11ea-8e3a-06a5a3d6d4e6.png">
+  </a>
+</div>
 
 
 私の印刷所に持ち込むPDFの作り方が全てmarkdown + OSSだけで完結したのでその方法についてもご紹介します。
