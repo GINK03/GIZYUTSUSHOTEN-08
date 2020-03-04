@@ -9,12 +9,14 @@
 
 サークル名は `Practical Data Science and Data Engineering` で、いかにも、、、な名前にしました。あまりひねったり、ギャグに走るのは性分でないためです。
 
-ここのGitHubからダイレクトにPDFをダウンロードすることもできますが、もしnardtreeにお茶でも奢っていいと言う優しい方がいらしたら、BOOTHのコンテンツを販売しているサイトから購入していただけると幸いです。
+ここのGitHubからダイレクトにPDFをダウンロードすることもできますが、もし私にお茶でも奢っていいと言う優しい方がいらしたら、BOOTHのコンテンツを販売しているサイトから購入していただけると幸いです。
 
 表紙などは、商用利用OKのphotostockからPowerPoint()で加工したもので、Nate SilverさんのSignal and Noiseをきっかけに業界に入ったという背景もあって、デザインを真似ています。
 <div align="center">
   <img width="500px" src="https://user-images.githubusercontent.com/4949982/75841554-60d13600-5e11-11ea-8143-2463aadef064.png">
 </div>
+
+内容としましては、いろんな試行錯誤をしてきたScrapingのテクニックをまとめた全集としました。
 
 また、著作権は主張したいのですが、GitHubからダウンロードしたコンテンツを教育目的や学術目的でシェアする分には構いませんので自由に使っていただけると幸いです。
 
@@ -37,9 +39,9 @@
 私の印刷所に持ち込むPDFの作り方が全てmarkdown + OSSだけで完結したのでその方法についてもご紹介します。
 
 
-## メジャーなOSSだけで日光印刷さんのレビューをクリアできた
+## メジャーなOSSだけで日光企画さんのレビューをクリアできた
 
-最初はAdobeの製品であったり、一部の使う機会が少ないソフトを学ばなくてはいけないのか、、、と学習コストを心配していたのですが、pandocとgoogle chrome + nodejsだけでなんとか日光印刷さんのレビューをクリアする程度には品質を確保できたのでその方法をご紹介します。
+最初はAdobeの製品であったり、一部の使う機会が少ないソフトを学ばなくてはいけないのか、、、と学習コストを心配していたのですが、pandocとgoogle chrome + nodejsだけでなんとか日光企画さんのレビューをクリアする程度には品質を確保できたのでその方法をご紹介します。
 MacOSで作成しましたが、Linuxでもいけるはずです。
 
 ## Markdownで資料をつくる
@@ -48,7 +50,7 @@ MacOSで作成しましたが、Linuxでもいけるはずです。
 
 ## PandocでMarkdownをデザイン付きHTMLにコンパイルする
 
-Pandocを製本のように使う人は、あまり国内で使用している人はいないようでしたが、Markdown形式をHTML形式に変換する際にたいへん便利です。また、この変換にはCSSを指定することができ、GitHubのウェブサイトのようにコードに対してシンタックスハイライトなどを行うことも可能です。
+Pandocを製本のユースケースでは、あまり国内で使用している人はいないようでしたが、Markdown形式をHTML形式に変換する際にたいへん便利です。また、この変換にはCSSを指定することができ、GitHubのウェブサイトのようにコードに対してシンタックスハイライトなどを行うことも可能です。
 
 ```console
  $ pandoc \
@@ -73,14 +75,15 @@ Pandocを製本のように使う人は、あまり国内で使用している�
 
 実際にGUIで操作するスタイルでは無くCUIで操作するため、Google Chromeをデバッグモードで起動する必要があります。
 
-Debug Modeで起動したGoogle Chromeにhtmlをpdfに変換する命令を行う
+### Debug Modeで起動したGoogle Chromeにhtmlをpdfに変換する命令を行う
 
 NodeJSをインストールしたのち、NodeJSからGoogle Chromeを操作するモジュールである、 [chrome-remote-interface](https://github.com/cyrus-and/chrome-remote-interface)をインストールします。
 
-chrome-remote-interface経由で以下のようなスクリプトを介してPDFに変換すると、PDFの各ページの余白やヘッダーやフッターの幅を調整したり、ページ番号を入れたりすることができます。
+chrome-remote-interface経由で以下のようなスクリプトを介してPDFに変換すると、PDFの各ページの余白やヘッダーやフッターの幅を調整したり、ページ番号を入れたりすることができます。  
+
 （印刷会社の日光企画さんに持ち込んで色々ヒアリングしたところ、ページナンバーを入れるのは必須であると言うことでした。）
 
-```js
+```javascript
     #!/usr/bin/env node
     const homedir = require('os').homedir();
     const CDP = require(homedir+'/.config/yarn/global/node_modules/chrome-remote-interface/');
@@ -131,7 +134,7 @@ chrome-remote-interface経由で以下のようなスクリプトを介してPDF
 `DocCompile.py` というファイルを作成して、pandocでカバーしきれないHTML, CSSの編集と、Google Chromeに印刷させる一連のフローをPython Scriptにラップアップしました。
 自分の環境に書き換えて用いていただけると幸いです。
 
-https://github.com/GINK03/GIZYUTSUSHOTEN-08
+[https://github.com/GINK03/GIZYUTSUSHOTEN-08:embed]
 
 
 ## 参考
