@@ -11,6 +11,11 @@
 
 ここのGitHubからダイレクトにPDFをダウンロードすることもできますが、もしnardtreeにお茶でも奢っていいと言う優しい方がいらしたら、BOOTHのコンテンツを販売しているサイトから購入していただけると幸いです。
 
+表紙などは、商用利用OKのphotostockからPowerPoint()で加工したもので、Nate SilverさんのSignal and Noiseをきっかけに業界に入ったという背景もあって、デザインを真似ています。
+<div align="center">
+  <img width="500px" src="https://user-images.githubusercontent.com/4949982/75841554-60d13600-5e11-11ea-8143-2463aadef064.png">
+</div>
+
 また、著作権は主張したいのですが、GitHubからダウンロードしたコンテンツを教育目的や学術目的でシェアする分には構いませんので自由に使っていただけると幸いです。
 
 **GitHub版(無料)**  
